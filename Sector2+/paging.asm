@@ -1,4 +1,4 @@
-PageTableEntry equ 0x1000
+PageTableEntry equ 0x10000
 
 SetUpIdentityPaging:
     ; Zero out the page table region first
@@ -8,11 +8,19 @@ SetUpIdentityPaging:
     rep stosd
 
     mov edi, PageTableEntry
-    mov dword [edi], 0x2003      ; PML4E (0x1000) -> PDP (0x2000)
-    mov dword [edi + 0x1000], 0x3003 ; PDPE (0x2000) -> PD (0x3000)
-    mov dword [edi + 0x2000], 0x4003 ; PDE (0x3000) -> PT (0x4000)
-    add edi, 0x3000              ; EDI now points to PT (0x4000)
+    mov eax, PageTableEntry
+    add eax, 0x1003              ; EAX = PDP + flags
+    mov [edi], eax               ; PML4[0] -> PDP
 
+    add edi, 0x1000              ; EDI = PDP
+    add eax, 0x1000              ; EAX = PD + flags
+    mov [edi], eax               ; PDP[0] -> PD
+
+    add edi, 0x1000              ; EDI = PD
+    add eax, 0x1000              ; EAX = PT + flags
+    mov [edi], eax               ; PD[0] -> PT
+
+    add edi, 0x1000              ; EDI = PT
     mov ebx, 0x00000003
     mov ecx, 512
     .SetEntry:

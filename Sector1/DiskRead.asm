@@ -1,4 +1,4 @@
-PROGRAM_SPACE equ 0x7e00
+PROGRAM_SPACE equ 0x8000
 
 ReadDisk:
     ; Reset the disk system first
@@ -14,7 +14,7 @@ ReadDisk:
     
     ; Setup Disk Parameters for Sector 2 (ExtendedProgram)
     mov ah, 0x02       ; BIOS read sectors
-    mov al, 8          ; Attempt to read 8 sectors
+    mov al, 32         ; Attempt to read 32 sectors
     mov dl, [BOOT_DISK]
     mov ch, 0          ; Cylinder 0
     mov dh, 0          ; Head 0
@@ -24,7 +24,7 @@ ReadDisk:
     jc .DiskError      ; Jump if carry flag is set (Read failed)
     
     ; Check AL to see how many sectors were actually read
-    cmp al, 8
+    cmp al, 32         ; Match the 32 sectors we requested
     jne .DiskError     ; If we read fewer than 4 sectors, it's an error
     ret
 

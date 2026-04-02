@@ -1,3 +1,4 @@
+[bits 16]
 print:
     pusha
     mov bh, 0          ; Page 0

@@ -49,7 +49,7 @@ Start64Bit:
     mov rax, 0x1f201f201f201f20
     mov ecx, 500
     rep stosq
-    jmp _start
+    call _start
     jmp $
 
 times 4096-($-$$) db 0
