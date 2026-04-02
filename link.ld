@@ -6,6 +6,7 @@ INPUT
 (
     O/ExtendedProgram.o
     O/Kernel.o
+    O/Binaries.o
 )
 
 OUTPUT
@@ -16,8 +17,8 @@ OUTPUT
 SECTIONS
 {
     . = 0x8000;
-    
-    .text : ALIGN(0x1000)
+
+    .text : 
     {
         *(.text)
     }

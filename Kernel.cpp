@@ -1,4 +1,10 @@
+#include "libs/TextPrint.cpp"
+
+extern const char Test[];
+
 extern "C" void _start () {
-    int* ptr = (int*)0xb8000;
+    uint_8 clr = BACKGROUND_BLACK | FOREGROUND_WHITE;
+    clearScreen(clr);
+    PrintString(Test, clr);
     return ;
 }

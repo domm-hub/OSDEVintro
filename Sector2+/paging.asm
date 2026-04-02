@@ -1,4 +1,4 @@
-PageTableEntry equ 0x10000
+PageTableEntry equ 0x20000
 
 SetUpIdentityPaging:
     ; Zero out the page table region first

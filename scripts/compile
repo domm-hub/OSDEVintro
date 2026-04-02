@@ -1,10 +1,11 @@
 #!/bin/zsh
 
 mkdir -p O
-rm -f O/bootloader.bin O/ExtendedProgram.o O/Kernel.o kernel.bin bootloader.flp 2>/dev/null
+rm -rf O/*
 
-nasm -f bin Sector1/bootloader.asm -o O/bootloader.bin
+nasm -f bin Sector1/bootloader.asm         -o O/bootloader.bin
 nasm -f elf64 Sector2+/ExtendedProgram.asm -o O/ExtendedProgram.o
+nasm -f elf64 Sector2+/Binaries.asm        -o O/Binaries.o
 
 x86_64-elf-g++ -ffreestanding -mno-red-zone -m64 -fno-exceptions -fno-rtti -c "Kernel.cpp" -o "O/Kernel.o"
 

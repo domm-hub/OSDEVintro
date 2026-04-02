@@ -1,8 +1,0 @@
-#!/bin/zsh
-./compile
-
-if [ "$1" = "nographics" ]; then
-    qemu-system-x86_64 -nographic -drive file=bootloader.flp,format=raw
-else
-    qemu-system-x86_64 -drive file=bootloader.flp,format=raw
-fi

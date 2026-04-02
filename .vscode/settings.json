@@ -1,0 +1,9 @@
+{
+    "C_Cpp.vcpkg.enabled": false,
+    "C_Cpp.debugShortcut": false,
+    "C_Cpp.suggestSnippets": false,
+    "debug.toolBarLocation": "hidden",
+    "code-runner.executorMap": {
+        "cpp": "cd $workspaceRoot && chmod +x ./scripts/run && zsh -l -c './scripts/run' "
+    }
+}

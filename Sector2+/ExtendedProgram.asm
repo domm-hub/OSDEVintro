@@ -1,3 +1,4 @@
+[bits 16]
 jmp EnterProtectedMode
 
 
@@ -51,5 +52,3 @@ Start64Bit:
     rep stosq
     call _start
     jmp $
-
-times 4096-($-$$) db 0
