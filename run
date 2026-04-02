@@ -1,0 +1,17 @@
+#!/bin/zsh
+# 1. Clean up
+rm -f O/bootloader.bin O/ExtendedProgram.bin bootloader.flp
+
+nasm -f bin Sector1/bootloader.asm -o O/bootloader.bin
+nasm -f bin Sector2+/ExtendedProgram.asm -o O/ExtendedProgram.bin
+
+
+dd if=O/bootloader.bin of=bootloader.flp bs=512 count=1 conv=notrunc status=none
+dd if=O/ExtendedProgram.bin of=bootloader.flp bs=512 seek=1 conv=notrunc status=none
+
+# 6. Run in QEMU
+if [ "$1" = "nographics" ]; then
+    qemu-system-x86_64 -nographic -drive file=bootloader.flp,format=raw
+else
+    qemu-system-x86_64 -drive file=bootloader.flp,format=raw
+fi
