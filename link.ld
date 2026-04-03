@@ -4,14 +4,14 @@ ENTRY(_start)
 
 INPUT
 (
-    O/ExtendedProgram.o
-    O/Kernel.o
-    O/Binaries.o
+    bin/O/ExtendedProgram.o
+    bin/O/Kernel.o
+    bin/O/Binaries.o
 )
 
 OUTPUT
 (
-    kernel.bin
+    bin/kernel.bin
 )
 
 SECTIONS
@@ -23,6 +23,11 @@ SECTIONS
         *(.text)
     }
 
+    .idt BLOCK(0x1000) : ALIGN(0x1000)
+    {
+        _idt = .;
+        . = . + 0x1000;
+    }
     .data : ALIGN(0x1000)
     {
         *(.data)

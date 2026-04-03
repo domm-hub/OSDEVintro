@@ -2,11 +2,11 @@
 ./scripts/compile
 
 if [ "$1" = "nographics" ]; then
-    qemu-system-x86_64 -nographic -drive file=bootloader.flp,format=raw,index=0,media=disk
+    qemu-system-x86_64 -nographic -drive file=bootable/bootloader.flp,format=raw,index=0,if=floppy
 else
-    qemu-system-x86_64 -drive file=bootloader.flp,format=raw,index=0,media=disk
+    qemu-system-x86_64 -drive file=bootable/bootloader.flp,format=raw,index=0,if=floppy
 fi
 
-rm kernel.bin bootloader.flp 2>/dev/null
+rm bin/kernel.bin bootable/bootloader.flp 2>/dev/null
 
 exit 0

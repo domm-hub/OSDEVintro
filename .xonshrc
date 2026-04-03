@@ -1,0 +1,2 @@
+# By Adam Hany
+aliases["run"] = "zsh -l -c ./scripts/run"

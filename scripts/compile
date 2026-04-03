@@ -1,16 +1,21 @@
 #!/bin/zsh
 
-mkdir -p O
-rm -rf O/*
+mkdir -p bin/O
+rm -rf bin/O/*
 
-nasm -f bin Sector1/bootloader.asm         -o O/bootloader.bin
-nasm -f elf64 Sector2+/ExtendedProgram.asm -o O/ExtendedProgram.o
-nasm -f elf64 Sector2+/Binaries.asm        -o O/Binaries.o
+nasm -f bin   ASM/Sector1/bootloader.asm        -o bin/O/bootloader.bin
+nasm -f elf64 ASM/Sector2+/ExtendedProgram.asm  -o bin/O/ExtendedProgram.o
+nasm -f elf64 ASM/SecImport/Binaries.asm        -o bin/O/Binaries.o
 
-x86_64-elf-g++ -ffreestanding -mno-red-zone -m64 -fno-exceptions -fno-rtti -c "Kernel.cpp" -o "O/Kernel.o"
+x86_64-elf-g++ -ffreestanding -mno-red-zone -m64 -fno-exceptions -fno-rtti -c "C++/Kernel.cpp" -o "bin/O/Kernel.o"
 
 x86_64-elf-ld -T link.ld
 
-dd if=O/bootloader.bin of=bootloader.flp bs=512 count=1 conv=notrunc status=none
-dd if=kernel.bin of=bootloader.flp bs=512 seek=1 conv=notrunc status=none
-truncate -s 1440k bootloader.flp
+# Create an empty 1.44MB floppy image
+dd if=/dev/zero of=bootable/bootloader.flp bs=512 count=2880 status=none
+
+# Write the bootloader to the first sector
+dd if=bin/O/bootloader.bin of=bootable/bootloader.flp bs=512 count=1 conv=notrunc status=none
+
+# Write the kernel starting from the second sector
+dd if=bin/kernel.bin of=bootable/bootloader.flp bs=512 seek=1 conv=notrunc status=none
