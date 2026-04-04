@@ -2,6 +2,7 @@
 #include "libs/IDT.cpp"
 
 extern const char Test[];
+extern uint_64 isr1;
 
 extern "C" void _start () {
     SetCursorPosition(0);
@@ -12,3 +13,4 @@ extern "C" void _start () {
 
     return ;
 }
+
