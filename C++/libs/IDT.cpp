@@ -12,7 +12,13 @@ struct IDT64 {
 };
 
 extern IDT64 _idt[256];
+extern uint_64 isr1;
+
 
 void InitializeIDT(){
+    
+}
+
+void isr1_handler(){
     
 }
