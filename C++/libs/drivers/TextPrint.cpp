@@ -90,3 +90,24 @@ const char* HexToString(T value){
 
     return HexToStringOutput;
 }
+
+void PrintChar(char chr, uint_8 color = 0x0F) {
+    // 1. Handle Newline (\n)
+    if (chr == '\n') {
+        CursorPosition += 80 - (CursorPosition % 80);
+    } 
+    // 2. Handle Backspace (\b)
+    else if (chr == '\b') {
+        if (CursorPosition > 0) CursorPosition--;
+        *((uint_8*)((uint_64)0xB8000 + (CursorPosition * 2))) = ' ';
+    } 
+    // 3. Normal Character
+    else {
+        *((uint_8*)((uint_64)0xB8000 + (CursorPosition * 2))) = chr;
+        *((uint_8*)((uint_64)0xB8000 + (CursorPosition * 2) + 1)) = color;
+        CursorPosition++;
+    }
+
+    // 4. Update the blinking hardware cursor
+    SetCursorPosition(CursorPosition);
+}

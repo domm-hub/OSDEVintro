@@ -2,6 +2,8 @@
 #include "TypeDefs.cpp"
 #include "drivers/IO.cpp"
 
+#define KeyBoardInput 0x60
+
 struct IDT64 {
     uint_16 offset_low;
     uint_16 selector;
@@ -10,10 +12,11 @@ struct IDT64 {
     uint_16 offset_mid;
     uint_32 offset_high;
     uint_32 zero;
-};
+} __attribute__((packed));
 
 extern IDT64 _idt[256];
 extern "C" void LoadIDT();
+extern "C" uint_64 isr1();
 
 void InitializeIDT(){
     RemapPic(); // 1. Move IRQs to 32+
@@ -39,6 +42,8 @@ void InitializeIDT(){
 }
 
 extern "C" void isr1_handler(){
+    uint_8 scanCode = inb(KeyBoardInput);
+    
     outb(0x20, 0x20);
     outb(0xA0, 0x20);
 }
