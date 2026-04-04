@@ -6,21 +6,23 @@
 
 #define KeyBoardInput 0x60
 
-struct IDTEntry {
-    uint_16 offset_low;     // Offset bits 0..15
-    uint_16 selector;       // Kernel Code Segment selector (usually 0x08)
-    uint_8  ist;            // Interrupt Stack Table offset (usually 0)
-    uint_8  types_attr;     // Gate type and attributes
-    uint_16 offset_mid;     // Offset bits 16..31
-    uint_32 offset_high;    // Offset bits 32..63
-    uint_32 zero;           // Reserved/Must be zero
+struct IDT64 {
+    uint_16 offset_low;
+    uint_16 selector;
+    uint_8 ist;
+    uint_8 types_attr;
+    uint_16 offset_mid;
+    uint_32 offset_high;
+    uint_32 zero;
 } __attribute__((packed));
 
-IDTEntry _idt[256] __attribute__((aligned(16)));
-
-
+extern IDT64 _idt[256];
 extern "C" void LoadIDT();
 extern "C" uint_64 isr1();
+
+void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
+extern bool LeftShiftPressed;
+extern bool RightShiftPressed;
 
 void InitializeIDT(){
     RemapPic(); // 1. Move IRQs to 32+
@@ -28,7 +30,7 @@ void InitializeIDT(){
     // 2. Get the 64-bit address of your ASM stub
     uint_64 handler = (uint_64)isr1; 
 
-    // 3. Fill Entry 33 (Keyboard)
+    // 3. Fill Entry 33 (Keyboard) - IRQ1 is 32 + 1 = 33
     _idt[33].offset_low  = (uint_16)(handler & 0xFFFF);
     _idt[33].offset_mid  = (uint_16)((handler >> 16) & 0xFFFF);
     _idt[33].offset_high = (uint_32)((handler >> 32) & 0xFFFFFFFF);
@@ -45,14 +47,14 @@ void InitializeIDT(){
     LoadIDT(); // 5. lidt and sti
 }
 
-void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
-
-extern "C" void isr1_handler() {
-    uint_8 scanCode = inb(0x60);
-    uint_8 chr = KBSet1::ScanCodeLookupTable[scanCode];
+extern "C" void isr1_handler(){
+    uint_8 scanCode = inb(KeyBoardInput);
+    uint_8 chr = KBSet1::ScanCodeToChar(scanCode, LeftShiftPressed | RightShiftPressed);
+    
     if (MainKeyboardHandler != 0){
         MainKeyboardHandler(scanCode, chr);
     }
+    
     outb(0x20, 0x20);
     outb(0xA0, 0x20);
 }

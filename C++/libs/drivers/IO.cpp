@@ -31,27 +31,21 @@ uint_8 inb(uint_16 port){
 }
 
 void RemapPic() {
-    // Save masks
+
     uint_8 a1 = inb(PIC1_DATA);
     uint_8 a2 = inb(PIC2_DATA);
 
-    // Start Init
-    outb(PIC1_COMMAND, 0x11);
-    outb(PIC2_COMMAND, 0x11);
-
-    // Vector Offsets (IMPORTANT: 32 and 40)
-    outb(PIC1_DATA, 0x20); 
-    outb(PIC2_DATA, 0x28); 
-
-    // Cascading
+    outb(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
+    outb(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
+    outb(PIC1_DATA, 0);
+    outb(PIC2_DATA, 8);
     outb(PIC1_DATA, 4);
     outb(PIC2_DATA, 2);
+    outb(PIC1_DATA, ICW4_8086);
+    outb(PIC2_DATA, ICW4_8086);
 
-    // 8086 Mode
-    outb(PIC1_DATA, 0x01);
-    outb(PIC2_DATA, 0x01);
+    outb(PIC1_DATA, a1);
+    outb(PIC2_DATA, a1);
 
-    // Restore Master, but maybe keep Slave masked (0xFF) to prevent the crash
-    outb(PIC1_DATA, a1); 
-    outb(PIC2_DATA, a1); // If a2 crashes, 0xFF will keep it quiet but safe
 }
+
