@@ -7,6 +7,7 @@ idtDescriptor:
     push rax
     push rcx
     push rdx
+    push r8    ; Added r8
     push r9
     push r10
     push r11
@@ -16,8 +17,8 @@ idtDescriptor:
     pop r11
     pop r10
     pop r9
-    pop rdx
-    pop rdx
+    pop r8     ; Fixed from rdx
+    pop rdx    ; Fixed from duplicate rdx
     pop rcx
     pop rax
 %endmacro
@@ -29,7 +30,6 @@ isr1:
     POPALL
     iretq
     GLOBAL isr1
-
 
 LoadIDT:
     lidt [idtDescriptor]

@@ -49,6 +49,15 @@ void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_W
     SetCursorPosition(index);
 }
 
+void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
+    uint_16 index = CursorPosition;
+    *(VGA_MEMORY + index * 2) = chr;
+    *(VGA_MEMORY + index * 2 + 1) = color;
+    index++;
+    SetCursorPosition(CursorPosition + 1);
+}
+
+
 // Global iteration counter
 
 
