@@ -1,5 +1,6 @@
 #pragma once
 #include "TypeDefs.cpp"
+#include "drivers/IO.cpp"
 
 struct IDT64 {
     uint_16 offset_low;
@@ -22,7 +23,7 @@ void InitializeIDT(){
 }
 
 void isr1_handler(){
+
     outb(0x20, 0x20);
     outb(0xA0, 0x20);
-
 }

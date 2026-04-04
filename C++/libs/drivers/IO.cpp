@@ -29,5 +29,6 @@ uint_8 inb(uint_16 port){
 }
 
 void RemapPic(){
+    uint_8 a1, a2;
     
 }
