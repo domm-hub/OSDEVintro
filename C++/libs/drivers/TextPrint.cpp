@@ -8,7 +8,7 @@
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 
-uint_16 CursorPosition;
+uint_16 CursorPosition = 0;
 
 
 
@@ -92,22 +92,34 @@ const char* HexToString(T value){
 }
 
 void PrintChar(char chr, uint_8 color = 0x0F) {
-    // 1. Handle Newline (\n)
+    uint_8* vga_buffer = (uint_8*)0xB8000;
+
+    // 1. Safety Check: If we are off-screen, wrap back to top
+    // 80 columns * 25 rows = 2000 characters
+    if (CursorPosition >= 2000) {
+        CursorPosition = 0; 
+    }
+
+    // 2. Handle Newline (\n)
     if (chr == '\n') {
+        // Move to the start of the next line
         CursorPosition += 80 - (CursorPosition % 80);
     } 
-    // 2. Handle Backspace (\b)
+    // 3. Handle Backspace (\b)
     else if (chr == '\b') {
-        if (CursorPosition > 0) CursorPosition--;
-        *((uint_8*)((uint_64)0xB8000 + (CursorPosition * 2))) = ' ';
+        if (CursorPosition > 0) {
+            CursorPosition--;
+            vga_buffer[CursorPosition * 2] = ' ';
+            vga_buffer[CursorPosition * 2 + 1] = color;
+        }
     } 
-    // 3. Normal Character
+    // 4. Normal Character
     else {
-        *((uint_8*)((uint_64)0xB8000 + (CursorPosition * 2))) = chr;
-        *((uint_8*)((uint_64)0xB8000 + (CursorPosition * 2) + 1)) = color;
+        vga_buffer[CursorPosition * 2] = chr;
+        vga_buffer[CursorPosition * 2 + 1] = color;
         CursorPosition++;
     }
 
-    // 4. Update the blinking hardware cursor
+    // 5. Sync the hardware blinking cursor
     SetCursorPosition(CursorPosition);
 }
