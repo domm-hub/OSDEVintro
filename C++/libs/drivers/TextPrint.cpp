@@ -51,6 +51,23 @@ void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_W
 
 // Global iteration counter
 
+void PrintChar(char chr, uint_8 color = 0xFD){
+    uint_16 index = CursorPosition;
+    switch (chr){
+        case 10:
+            index += VGA_WIDTH;
+        case 13:
+            index -= index % VGA_WIDTH;
+            break;
+        default:
+            *(VGA_MEMORY + index * 2) = chr;
+            *(VGA_MEMORY + index * 2 + 1) = color;
+            index++;
+    }
+    SetCursorPosition(index);
+
+}
+
 
 void clearScreen(uint_64 clearclr = BACKGROUND_BLACK | FOREGROUND_WHITE){
     uint_64 value = 0;

@@ -1,6 +1,8 @@
 #pragma once
 #include "TypeDefs.cpp"
 #include "drivers/IO.cpp"
+#include "drivers/TextPrint.cpp"
+
 
 struct IDT64 {
     uint_16 offset_low;
@@ -39,6 +41,7 @@ void InitializeIDT(){
 }
 
 void isr1_handler(){
+    // PrintChar
     outb(0x20, 0x20);
     outb(0xA0, 0x20);
 }
