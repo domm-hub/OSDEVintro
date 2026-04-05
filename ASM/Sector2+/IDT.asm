@@ -1,4 +1,5 @@
 [extern _idt]
+
 idtDescriptor:
     dw 4095
     dq _idt
@@ -7,20 +8,20 @@ idtDescriptor:
     push rax
     push rcx
     push rdx
-    push r8    ; Added r8
+    push r8
     push r9
     push r10
     push r11
 %endmacro
 
 %macro POPALL 0
-    pop r11
-    pop r10
-    pop r9
-    pop r8     ; Fixed from rdx
-    pop rdx    ; Fixed from duplicate rdx
-    pop rcx
     pop rax
+    pop rcx
+    pop rdx
+    pop r8
+    pop r9
+    pop r10
+    pop r11
 %endmacro
 
 [extern isr1_handler]
