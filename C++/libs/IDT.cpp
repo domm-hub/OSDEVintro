@@ -2,6 +2,7 @@
 #include "TypeDefs.cpp"
 #include "drivers/IO.cpp"
 #include "drivers/TextPrint.cpp"
+#include "Sets/KBSCodesS1.cpp"
 
 
 struct IDT64 {
@@ -34,6 +35,8 @@ void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_
 }
 
 void InitializeIDT(){
+    MakeIDTEntry(isr1, 1, 0x08, 0x8e);
+
     outb(0x21, 0xfd);
     outb(0xA1, 0xff);
     LoadIDT();
@@ -41,7 +44,8 @@ void InitializeIDT(){
 }
 
 void isr1_handler(){
-    // PrintChar
+    uint_8 scanCode = inb(0x60);
+    PrintChar(KBSet1::ScanCodeLookupTable[scanCode]),
     outb(0x20, 0x20);
     outb(0xA0, 0x20);
 }
