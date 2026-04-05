@@ -26,7 +26,7 @@ void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_
     _idt[index].zero = 0;
     _idt[index].offset_low = (uint_16)(((uint_64) & handler & off1));
     _idt[index].offset_mid = (uint_16)(((uint_64) & handler & off2) >> 16);
-    _idt[index].offset_high = (uint_16)(((uint_64) & handler & off3) >> 32);
+    _idt[index].offset_high = (uint_32)(((uint_64) & handler & off3) >> 32);
     _idt[index].ist = 0;
     _idt[index].selector = selector;
     _idt[index].types_attr = types_attr;
@@ -43,7 +43,7 @@ void InitializeIDT(){
     
 }
 
-void isr1_handler(){
+extern "C" void isr1_handler(){
     uint_8 scanCode = inb(0x60);
     PrintChar(KBSet1::ScanCodeLookupTable[scanCode]),
     outb(0x20, 0x20);

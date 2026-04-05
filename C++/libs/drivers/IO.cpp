@@ -36,10 +36,10 @@ void RemapPic(){
     outb(PIC2_COMMAND, ICW1_INIT | ICW4_8086);
 
     outb(PIC1_DATA, 0);
-    outb(PIC1_DATA, 8);
+    outb(PIC2_DATA, 8);
 
     outb(PIC1_DATA, 4);
-    outb(PIC1_DATA, 2);
+    outb(PIC2_DATA, 2);
 
     outb(PIC1_DATA, ICW4_8086);
     outb(PIC2_DATA, ICW4_8086);
