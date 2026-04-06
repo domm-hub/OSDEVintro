@@ -3,6 +3,7 @@
 
 extern const char Test[];
 bool LShift = false;
+bool RShift = false;
 
 
 void KeyboardHandler(uint_8 scanCode, uint_8 chr){
@@ -10,10 +11,11 @@ void KeyboardHandler(uint_8 scanCode, uint_8 chr){
         switch (LShift){
             case true:
                 PrintChar(KBSet1::ShiftScanCodeLookupTable[scanCode]);
+                break;
             case false:
                 PrintChar(chr);
+                break;
         }
-        PrintChar(chr);
     } else {
         switch (scanCode){
             case 0x8E:
@@ -26,6 +28,12 @@ void KeyboardHandler(uint_8 scanCode, uint_8 chr){
                 break;
             case 0xAA:
                 LShift = false;
+                break;
+            case 0x36:
+                RShift = true;
+                break;
+            case 0x86:
+                RShift = false;
                 break;
             
 
