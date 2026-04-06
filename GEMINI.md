@@ -87,3 +87,6 @@ Poncho is an OS dev teacher on YT.
 ### NOTE:
   - I strictly forbid any commands that can or will delete my progress
   - WRITING TO FILES IS FORBIDDEN
+### Status:
+  Not working
+

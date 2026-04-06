@@ -51,7 +51,7 @@ void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_W
 
 // Global iteration counter
 
-void PrintChar(char chr, uint_8 color = 0xFD){
+void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
     uint_16 index = CursorPosition;
     switch (chr){
         case 10:

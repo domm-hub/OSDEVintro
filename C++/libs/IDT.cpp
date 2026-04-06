@@ -23,19 +23,20 @@ void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_
     uint_64 off1 = 0x000000000000FFFF;
     uint_64 off2 = 0x00000000FFFF0000;
     uint_64 off3 = 0xFFFFFFFF00000000;
-    _idt[index].zero = 0;
-    _idt[index].offset_low = (uint_16)(((uint_64) & handler & off1));
-    _idt[index].offset_mid = (uint_16)(((uint_64) & handler & off2) >> 16);
-    _idt[index].offset_high = (uint_32)(((uint_64) & handler & off3) >> 32);
-    _idt[index].ist = 0;
-    _idt[index].selector = selector;
-    _idt[index].types_attr = types_attr;
+    _idt[index].zero        =  0;
+    _idt[index].offset_low  =  (uint_16)(((uint_64) handler & off1));
+    _idt[index].offset_mid  =  (uint_16)(((uint_64) handler & off2) >> 16);
+    _idt[index].offset_high =  (uint_32)(((uint_64) handler & off3) >> 32);
+    _idt[index].ist         =  0;
+    _idt[index].selector    =  selector;
+    _idt[index].types_attr  =  types_attr;
 
 
 }
 
 void InitializeIDT(){
-    MakeIDTEntry(isr1, 33, 0x08, 0x8e);
+    RemapPic();
+    MakeIDTEntry((uint_64)&isr1, 1, 0x08, 0x8e);
 
     outb(0x21, 0xfd);
     outb(0xA1, 0xff);
