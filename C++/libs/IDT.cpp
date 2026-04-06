@@ -44,10 +44,12 @@ void InitializeIDT(){
     
 }
 
+void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
+
 extern "C" void isr1_handler(){
     uint_8 scanCode = inb(0x60);
-    if (scanCode < 0x80){
-        PrintChar(KBSet1::ScanCodeLookupTable[scanCode]);
+    if (MainKeyboardHandler != 0){
+        MainKeyboardHandler(scanCode, KBSet1::ScanCodeLookupTable[scanCode]);
     }
     outb(0x20, 0x20);
     outb(0xA0, 0x20);
