@@ -8,7 +8,7 @@ bool RShift = false;
 
 void KeyboardHandler(uint_8 scanCode, uint_8 chr){
     if (scanCode < 0x80 and chr != 0){
-        switch (LShift){
+        switch (LShift | RShift){
             case true:
                 PrintChar(KBSet1::ShiftScanCodeLookupTable[scanCode]);
                 break;
@@ -34,6 +34,9 @@ void KeyboardHandler(uint_8 scanCode, uint_8 chr){
                 break;
             case 0x86:
                 RShift = false;
+                break;
+            case 0x9C: // Enter
+                PrintString("\n\r");
                 break;
             
 
