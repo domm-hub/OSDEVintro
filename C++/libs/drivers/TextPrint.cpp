@@ -1,7 +1,8 @@
 #pragma once
-#include "IO.cpp"
-#include "../TypeDefs.cpp"
-#include "TextModeColorCodes.cpp"
+#include "IO.hpp"
+#include "TypeDefs.hpp"
+#include "TextModeColorCodes.hpp"
+#include "TextPrint.hpp"
 
 
 #define VGA_MEMORY (uint_8*)0xb8000
@@ -9,8 +10,6 @@
 #define VGA_HEIGHT 25
 
 uint_16 CursorPosition;
-
-
 
 void SetCursorPosition(uint_16 position){
     outb(0x3D4, 0x0F);
@@ -106,4 +105,41 @@ const char* HexToString(T value){
     HexToStringOutput[size + 1] = 0;
 
     return HexToStringOutput;
+}
+
+template <typename T>
+int u_to_string(T value, uint_32 buffer_size) {
+    if (buffer_size == 0) return -1;
+
+    char* ptr = buffer;
+    char* ptr1 = buffer;
+    char tmp;
+    T val = value;
+
+    // Handle 0 explicitly
+    if (val == 0) {
+        if (buffer_size < 2) return -1; 
+        *ptr++ = '0';
+    } else {
+        // Convert digits in reverse order
+        while (val > 0) {
+            if ((uint_32)(ptr - buffer) >= buffer_size - 1) return -1; 
+            *ptr++ = (val % 10) + '0';
+            val /= 10;
+        }
+    }
+
+    *ptr = '\0'; // Null-terminate
+    char* end_ptr = ptr - 1; // Point to last digit
+
+    // Reverse string
+    while (ptr1 < end_ptr) {
+        tmp = *end_ptr;
+        *end_ptr = *ptr1;
+        *ptr1 = tmp;
+        ptr1++;
+        end_ptr--;
+    }
+
+    return 0; // Success
 }

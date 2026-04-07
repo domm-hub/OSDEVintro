@@ -1,23 +1,9 @@
 #pragma once
-#include "TypeDefs.cpp"
-#include "drivers/IO.cpp"
-#include "drivers/TextPrint.cpp"
-#include "Sets/KBSCodesS1.cpp"
-
-
-struct IDT64 {
-    uint_16 offset_low;
-    uint_16 selector;
-    uint_8 ist;
-    uint_8 types_attr;
-    uint_16 offset_mid;
-    uint_32 offset_high;
-    uint_32 zero;
-};
-
-extern IDT64 _idt[256];
-extern uint_64 isr1;
-extern "C" void LoadIDT();
+#include "TypeDefs.hpp"
+#include "IO.hpp"
+#include "TextPrint.hpp"
+#include "KBSCodesS1.hpp"
+#include "IDT.hpp"
 
 void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_attr){
     uint_64 off1 = 0x000000000000FFFF;
@@ -43,8 +29,6 @@ void InitializeIDT(){
     LoadIDT();
     
 }
-
-void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
 
 extern "C" void isr1_handler(){
     uint_8 scanCode = inb(0x60);
