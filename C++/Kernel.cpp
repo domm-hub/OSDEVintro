@@ -1,10 +1,8 @@
-#include "drivers/TextPrint.hpp"
-#include "IDT.hpp"
-#include "drivers/Keyboard.hpp"
+#include "libs/drivers/TextPrint.cpp"
+#include "libs/IDT.cpp"
+#include "libs/drivers/Keyboard.cpp"
 
 extern const char Test[];
-
-
 
 extern "C" void _start () {
     SetCursorPosition(0);
@@ -13,6 +11,7 @@ extern "C" void _start () {
     MainKeyboardHandler = KeyboardHandler;
     clearScreen(clr);
     PrintString(Test, clr);
+    PrintString(IntegerToString(-671234567));
 
     return ;
 }

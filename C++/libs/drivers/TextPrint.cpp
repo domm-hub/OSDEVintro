@@ -1,8 +1,7 @@
 #pragma once
-#include "IO.hpp"
-#include "TypeDefs.hpp"
-#include "TextModeColorCodes.hpp"
-#include "TextPrint.hpp"
+#include "IO.cpp"
+#include "../TypeDefs.cpp"
+#include "TextModeColorCodes.cpp"
 
 
 #define VGA_MEMORY (uint_8*)0xb8000
@@ -10,6 +9,8 @@
 #define VGA_HEIGHT 25
 
 uint_16 CursorPosition;
+
+
 
 void SetCursorPosition(uint_16 position){
     outb(0x3D4, 0x0F);
@@ -107,39 +108,37 @@ const char* HexToString(T value){
     return HexToStringOutput;
 }
 
-template <typename T>
-int u_to_string(T value, uint_32 buffer_size) {
-    if (buffer_size == 0) return -1;
+char IntegerToStringOutput[128];
 
-    char* ptr = buffer;
-    char* ptr1 = buffer;
-    char tmp;
-    T val = value;
+template<typename T>
+const char* IntegerToString(T value){
+    uint_8 isNegative = 0;
+    uint_64 temp;
 
-    // Handle 0 explicitly
-    if (val == 0) {
-        if (buffer_size < 2) return -1; 
-        *ptr++ = '0';
+    if (value < 0){
+        isNegative = 1;
+        temp = (uint_64)(-value);
     } else {
-        // Convert digits in reverse order
-        while (val > 0) {
-            if ((uint_32)(ptr - buffer) >= buffer_size - 1) return -1; 
-            *ptr++ = (val % 10) + '0';
-            val /= 10;
-        }
+        temp = (uint_64)value;
     }
 
-    *ptr = '\0'; // Null-terminate
-    char* end_ptr = ptr - 1; // Point to last digit
+    int i = 0;
+    do {
+        IntegerToStringOutput[i++] = (temp % 10) + '0';
+        temp /= 10;
+    } while (temp);
 
-    // Reverse string
-    while (ptr1 < end_ptr) {
-        tmp = *end_ptr;
-        *end_ptr = *ptr1;
-        *ptr1 = tmp;
-        ptr1++;
-        end_ptr--;
+    if (isNegative)
+        IntegerToStringOutput[i++] = '-';
+
+    IntegerToStringOutput[i] = 0;
+
+    // reverse
+    for (int j = 0; j < i / 2; j++){
+        char t = IntegerToStringOutput[j];
+        IntegerToStringOutput[j] = IntegerToStringOutput[i - j - 1];
+        IntegerToStringOutput[i - j - 1] = t;
     }
 
-    return 0; // Success
+    return IntegerToStringOutput;
 }
