@@ -87,6 +87,7 @@ Poncho is an OS dev teacher on YT.
 ### NOTE:
   - I strictly forbid any commands that can or will delete my progress
   - WRITING TO FILES IS FORBIDDEN
+  - If wanna to provide an edit, make a temp file with the files name + _diff.temp
 ### Status:
   Not working
 

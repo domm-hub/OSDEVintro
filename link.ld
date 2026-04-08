@@ -21,6 +21,9 @@ SECTIONS
     .text : 
     {
         *(.text)
+        *(.text.*)
+        *(.rodata)      /* Moved strings up here! */
+        *(.rodata.*)    /* Added the SSE wildcard! */
     }
 
     .idt BLOCK(0x1000) : ALIGN(0x1000)
@@ -28,15 +31,13 @@ SECTIONS
         _idt = .;
         . = . + 0x1000;
     }
+    
     .data : ALIGN(0x1000)
     {
         *(.data)
     }
     
-    .rodata : ALIGN(0x1000)
-    {
-        *(.rodata)
-    }
+    /* Deleted the old .rodata section from here entirely */
 
     .bss : ALIGN(0x1000)
     {

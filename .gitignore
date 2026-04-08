@@ -7,3 +7,4 @@ GEMINI*
 bin/
 .git/
 .vscode/
+temp/

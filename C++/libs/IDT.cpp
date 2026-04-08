@@ -17,6 +17,7 @@ struct IDT64 {
 
 extern IDT64 _idt[256];
 extern uint_64 isr1;
+extern uint_64 isr13;
 extern "C" void LoadIDT();
 
 void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_attr){
@@ -36,7 +37,8 @@ void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_
 
 void InitializeIDT(){
     RemapPic();
-    MakeIDTEntry((uint_64)&isr1, 1, 0x08, 0x8e);
+    MakeIDTEntry((uint_64)&isr1, 33, 0x08, 0x8e);
+    MakeIDTEntry((uint_64)&isr13, 13, 0x08, 0x8e);
 
     outb(0x21, 0xfd);
     outb(0xA1, 0xff);
@@ -44,8 +46,18 @@ void InitializeIDT(){
     
 }
 
+
 void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
 
+extern "C" void GPF_Handler(const char* message, uint_64 errorCode) {
+    clearScreen(0x4F);
+    PrintString(message, 0x4F);
+    PrintString("\nError Code: ", 0x4F);
+    PrintString(IntegerToString(errorCode), 0x4F); 
+    
+    // Now you know exactly which selector failed!
+    while(1);
+}
 extern "C" void isr1_handler(){
     uint_8 scanCode = inb(0x60);
     if (MainKeyboardHandler != 0){

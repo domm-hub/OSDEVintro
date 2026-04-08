@@ -1,5 +1,7 @@
 #pragma once
 #include "../TypeDefs.cpp"
+#include "../Sets/KBSCodesS1.cpp"
+#include "TextPrint.cpp"
 
 
 bool LShift = false;

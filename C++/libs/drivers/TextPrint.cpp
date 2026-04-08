@@ -35,6 +35,7 @@ void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_W
         switch (*charPtr){
             case 10:
                 index += VGA_WIDTH;
+                index -= index % VGA_WIDTH;
                 break;
             case 13:
                 index -= index % VGA_WIDTH;
@@ -57,6 +58,7 @@ void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
     switch (chr){
         case 10:
             index += VGA_WIDTH;
+            index -= index % VGA_WIDTH;
             break;
         case 13:
             index -= index % VGA_WIDTH;
@@ -73,20 +75,19 @@ void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
 
 void clearScreen(uint_64 clearclr = BACKGROUND_BLACK | FOREGROUND_WHITE){
     uint_64 value = 0;
-    value += clearclr << 8;
-    value += clearclr << 24;
-    value += clearclr << 40;
-    value += clearclr << 56;
-    for (uint_64* i = (uint_64*)VGA_MEMORY; i < (uint_64*)(VGA_MEMORY+4000); i ++) {
-        *(i + 0) = value; // Bytes 0-7
-        *(i + 1) = value; // Bytes 8-15
-        *(i + 2) = value; // Bytes 16-23
-        *(i + 3) = value; // Bytes 24-31
-        *(i + 4) = value; // Bytes 24-31
-        *(i + 5) = value; // Bytes 24-31
-        *(i + 6) = value; // Bytes 24-31
-        *(i + 7) = value; // Bytes 24-31
-        
+    // We want 4 copies of [Attribute][Space] in a 64-bit value
+    // 0x20 is ' ' (Space)
+    uint_64 character = 0x20; 
+    
+    uint_64 pair = (clearclr << 8) | character;
+    
+    value |= (pair << 0);
+    value |= (pair << 16);
+    value |= (pair << 32);
+    value |= (pair << 48);
+
+    for (uint_64* i = (uint_64*)VGA_MEMORY; i < (uint_64*)(VGA_MEMORY + 4000); i++) {
+        *i = value;
     }
 }
 
@@ -110,36 +111,51 @@ const char* HexToString(T value){
     return HexToStringOutput;
 }
 
+
 char IntegerToStringOutput[128];
-
 template<typename T>
-const char* IntegerToString(T value){
-    uint_8 isNegative = 0;
-    uint_64 temp;
+const char* IntegerToString(T value) {
+    // 1. Handle Zero explicitly
+    if (value == 0) {
+        IntegerToStringOutput[0] = '0';
+        IntegerToStringOutput[1] = '\0';
+        return IntegerToStringOutput;
+    }
 
-    if (value < 0){
-        isNegative = 1;
+    uint_64 temp;
+    bool isNegative = false;
+
+    // 2. Handle Negatives for signed types
+    // We check if T is signed. If value is negative, mark it and flip it.
+    if (value < 0) {
+        isNegative = true;
         temp = (uint_64)(-value);
     } else {
         temp = (uint_64)value;
     }
 
     int i = 0;
-    do {
+    // 3. Extract digits (they will be in reverse order)
+    while (temp > 0) {
         IntegerToStringOutput[i++] = (temp % 10) + '0';
         temp /= 10;
-    } while (temp);
+    }
 
-    if (isNegative)
+    if (isNegative) {
         IntegerToStringOutput[i++] = '-';
+    }
 
-    IntegerToStringOutput[i] = 0;
+    IntegerToStringOutput[i] = '\0'; // Null terminate
 
-    // reverse
-    for (int j = 0; j < i / 2; j++){
-        char t = IntegerToStringOutput[j];
-        IntegerToStringOutput[j] = IntegerToStringOutput[i - j - 1];
-        IntegerToStringOutput[i - j - 1] = t;
+    // 4. Reverse the string in place
+    int start = 0;
+    int end = i - 1;
+    while (start < end) {
+        char t = IntegerToStringOutput[start];
+        IntegerToStringOutput[start] = IntegerToStringOutput[end];
+        IntegerToStringOutput[end] = t;
+        start++;
+        end--;
     }
 
     return IntegerToStringOutput;
