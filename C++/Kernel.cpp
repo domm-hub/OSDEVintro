@@ -11,7 +11,10 @@ extern "C" void _start () {
     MainKeyboardHandler = KeyboardHandler;
     clearScreen(clr);
     PrintString(Test, clr);
+    float x = 6.7;
     PrintString(IntegerToString(-671234567));
+    PrintString("\n");
+    
 
     return ;
 }
