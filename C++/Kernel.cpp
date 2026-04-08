@@ -11,10 +11,16 @@ extern "C" void _start () {
     MainKeyboardHandler = KeyboardHandler;
     clearScreen(clr);
     PrintString(Test, clr);
-    float x = 6.7;
-    PrintString(IntegerToString(-671234567));
-    PrintString("\n");
-    
+    float x = 6.7f;
+    int y = (int)x;
+
+    if (y == 6) {
+        PrintString("SSE IS WORKING!", clr);
+    } else if (y == 0) {
+        PrintString("SSE RETURNED ZERO", clr);
+    } else {
+        PrintString("TOTAL CHAOS", clr);
+    }
 
     return ;
 }

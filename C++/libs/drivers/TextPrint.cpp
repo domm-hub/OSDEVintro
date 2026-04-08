@@ -35,6 +35,7 @@ void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_W
         switch (*charPtr){
             case 10:
                 index += VGA_WIDTH;
+                break;
             case 13:
                 index -= index % VGA_WIDTH;
                 break;
@@ -56,6 +57,7 @@ void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
     switch (chr){
         case 10:
             index += VGA_WIDTH;
+            break;
         case 13:
             index -= index % VGA_WIDTH;
             break;
@@ -75,7 +77,7 @@ void clearScreen(uint_64 clearclr = BACKGROUND_BLACK | FOREGROUND_WHITE){
     value += clearclr << 24;
     value += clearclr << 40;
     value += clearclr << 56;
-    for (uint_64* i = (uint_64*)VGA_MEMORY; i < (uint_64*)(VGA_MEMORY+4000); i += 8) {
+    for (uint_64* i = (uint_64*)VGA_MEMORY; i < (uint_64*)(VGA_MEMORY+4000); i ++) {
         *(i + 0) = value; // Bytes 0-7
         *(i + 1) = value; // Bytes 8-15
         *(i + 2) = value; // Bytes 16-23
