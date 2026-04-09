@@ -1,4 +1,3 @@
-#pragma once
 #include "IO.cpp"
 #include "TypeDefs.h"
 #include "TextModeColorCodes.h"

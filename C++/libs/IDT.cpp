@@ -1,4 +1,3 @@
-#pragma once
 #include "TypeDefs.h"
 #include "IO.h"
 #include "TextPrint.h"
@@ -33,8 +32,6 @@ void InitializeIDT(){
     
 }
 
-
-void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
 
 extern "C" void GPF_Handler(const char* message, uint_64 errorCode) {
     clearScreen(0x4F);

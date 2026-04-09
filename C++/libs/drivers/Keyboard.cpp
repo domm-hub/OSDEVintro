@@ -1,4 +1,3 @@
-#pragma once
 #include "TypeDefs.h"
 #include "KBSCodesS1.h"
 #include "TextPrint.cpp"
