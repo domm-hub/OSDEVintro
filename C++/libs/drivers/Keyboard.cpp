@@ -1,8 +1,8 @@
 #pragma once
-#include "../TypeDefs.cpp"
-#include "../Sets/KBSCodesS1.cpp"
+#include "TypeDefs.h"
+#include "KBSCodesS1.h"
 #include "TextPrint.cpp"
-
+#include "Keyboard.h"
 
 bool LShift = false;
 bool RShift = false;

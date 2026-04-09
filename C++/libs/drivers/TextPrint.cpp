@@ -1,7 +1,9 @@
 #pragma once
 #include "IO.cpp"
-#include "../TypeDefs.cpp"
-#include "TextModeColorCodes.cpp"
+#include "TypeDefs.h"
+#include "TextModeColorCodes.h"
+
+#include "TextPrint.h"
 
 
 #define VGA_MEMORY (uint_8*)0xb8000
@@ -159,4 +161,79 @@ const char* IntegerToString(T value) {
     }
 
     return IntegerToStringOutput;
+}
+
+char FloatToStringOutput[128];
+
+const char* FloatToString(double value, int precision = 6) {
+    int i = 0;
+    bool isNegative = false;
+
+    // 1. Handle Negative
+    if (value < 0) {
+        isNegative = true;
+        value = -value;
+    }
+
+    // 2. Rounding (Optional but recommended)
+    // Adds 0.5 to the last digit we care about to round correctly
+    double rounding = 0.5;
+    for (int p = 0; p < precision; ++p) rounding /= 10.0;
+    value += rounding;
+
+    // 3. Extract Integer Part
+    unsigned long long integerPart = (unsigned long long)value;
+    double fractionalPart = value - (double)integerPart;
+
+    // 4. Convert Fractional Part first (to know where the '.' goes)
+    // We do this in reverse order just like your integer function
+    for (int p = 0; p < precision; p++) {
+        fractionalPart *= 10;
+        int digit = (int)fractionalPart;
+        // We'll store these temporarily or just handle them after the decimal
+        // For simplicity in this logic, let's build the string from left to right
+    }
+
+    // --- Let's restart the buffer fill to be more efficient ---
+    i = 0;
+
+    // Add negative sign
+    if (isNegative) FloatToStringOutput[i++] = '-';
+
+    // Convert Integer Part (using your reverse logic)
+    int intStart = i;
+    if (integerPart == 0) {
+        FloatToStringOutput[i++] = '0';
+    } else {
+        while (integerPart > 0) {
+            FloatToStringOutput[i++] = (integerPart % 10) + '0';
+            integerPart /= 10;
+        }
+        // Reverse only the integer portion
+        int start = intStart;
+        int end = i - 1;
+        while (start < end) {
+            char t = FloatToStringOutput[start];
+            FloatToStringOutput[start] = FloatToStringOutput[end];
+            FloatToStringOutput[end] = t;
+            start++; end--;
+        }
+    }
+
+    // 5. Add Decimal Point
+    if (precision > 0) {
+        FloatToStringOutput[i++] = '.';
+
+        // 6. Extract and Add Fractional Digits
+        fractionalPart = value - (unsigned long long)value; 
+        for (int p = 0; p < precision; p++) {
+            fractionalPart *= 10;
+            int digit = (int)fractionalPart;
+            FloatToStringOutput[i++] = digit + '0';
+            fractionalPart -= digit;
+        }
+    }
+
+    FloatToStringOutput[i] = '\0';
+    return FloatToStringOutput;
 }

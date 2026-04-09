@@ -1,24 +1,11 @@
 #pragma once
-#include "TypeDefs.cpp"
-#include "drivers/IO.cpp"
-#include "drivers/TextPrint.cpp"
-#include "Sets/KBSCodesS1.cpp"
+#include "TypeDefs.h"
+#include "IO.h"
+#include "TextPrint.h"
+#include "KBSCodesS1.h"
 
+#include "IDT.h"
 
-struct IDT64 {
-    uint_16 offset_low;
-    uint_16 selector;
-    uint_8 ist;
-    uint_8 types_attr;
-    uint_16 offset_mid;
-    uint_32 offset_high;
-    uint_32 zero;
-};
-
-extern IDT64 _idt[256];
-extern uint_64 isr1;
-extern uint_64 isr13;
-extern "C" void LoadIDT();
 
 void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_attr){
     uint_64 off1 = 0x000000000000FFFF;
@@ -55,7 +42,6 @@ extern "C" void GPF_Handler(const char* message, uint_64 errorCode) {
     PrintString("\nError Code: ", 0x4F);
     PrintString(IntegerToString(errorCode), 0x4F); 
     
-    // Now you know exactly which selector failed!
     while(1);
 }
 extern "C" void isr1_handler(){

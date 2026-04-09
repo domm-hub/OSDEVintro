@@ -7,7 +7,7 @@ nasm -f bin   ASM/Sector1/bootloader.asm        -o bin/O/bootloader.bin
 nasm -f elf64 ASM/Sector2+/ExtendedProgram.asm  -o bin/O/ExtendedProgram.o
 nasm -f elf64 ASM/SecImport/Binaries.asm        -o bin/O/Binaries.o
 
-x86_64-elf-g++ -ffreestanding -mno-red-zone -m64 -fno-exceptions -fno-rtti -c -O0 -msse "C++/Kernel.cpp" -o "bin/O/Kernel.o"
+x86_64-elf-g++ -ffreestanding -mno-red-zone -m64 -fno-exceptions -fno-rtti -c -O0 -msse -I "C++/headers" "C++/Kernel.cpp" -o "bin/O/Kernel.o"
 
 x86_64-elf-ld -T link.ld
 

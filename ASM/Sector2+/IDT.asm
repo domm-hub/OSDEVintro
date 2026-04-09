@@ -35,18 +35,14 @@ isr1:
     ; We will write this in C++
 global isr13
 
-section .rodata
-    gpf_msg db "FATAL: GENERAL PROTECTION FAULT", 0
 
-section .text
-[extern GPF_Handler]
+gpf_msg db "FATAL: GENERAL PROTECTION FAULT", 0
+
+
 extern GPF_Handler
 global isr13
 
-section .rodata
-    gpf_msg db "GENERAL PROTECTION FAULT", 0
 
-section .text
 isr13:
     ; 1. Save all registers so we don't lose data
     push rax
