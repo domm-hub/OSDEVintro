@@ -1,15 +1,8 @@
-#include "IO.cpp"
+#include "IO.h"
 #include "TypeDefs.h"
 #include "TextModeColorCodes.h"
 
 #include "TextPrint.h"
-
-
-#define VGA_MEMORY (uint_8*)0xb8000
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
-
-uint_16 CursorPosition;
 
 
 
@@ -29,7 +22,7 @@ uint_16 PositionFromCoords(uint_8 x, uint_8 y){
 }
 
 
-void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
+void PrintString(const char* str, uint_8 color){
     uint_8* charPtr = (uint_8*)str;
     uint_16 index = CursorPosition;
     while (*charPtr != 0){
@@ -54,7 +47,7 @@ void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_W
 
 // Global iteration counter
 
-void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
+void PrintChar(char chr, uint_8 color){
     uint_16 index = CursorPosition;
     switch (chr){
         case 10:
@@ -74,7 +67,7 @@ void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE){
 }
 
 
-void clearScreen(uint_64 clearclr = BACKGROUND_BLACK | FOREGROUND_WHITE){
+void clearScreen(uint_64 clearclr){
     uint_64 value = 0;
     // We want 4 copies of [Attribute][Space] in a 64-bit value
     // 0x20 is ' ' (Space)
@@ -92,7 +85,6 @@ void clearScreen(uint_64 clearclr = BACKGROUND_BLACK | FOREGROUND_WHITE){
     }
 }
 
-char HexToStringOutput[128];
 template<typename T>
 const char* HexToString(T value){
     T* valPtr = &value;
@@ -112,8 +104,6 @@ const char* HexToString(T value){
     return HexToStringOutput;
 }
 
-
-char IntegerToStringOutput[128];
 template<typename T>
 const char* IntegerToString(T value) {
     // 1. Handle Zero explicitly
@@ -162,9 +152,7 @@ const char* IntegerToString(T value) {
     return IntegerToStringOutput;
 }
 
-char FloatToStringOutput[128];
-
-const char* FloatToString(double value, int precision = 6) {
+const char* FloatToString(double value, int precision) {
     int i = 0;
     bool isNegative = false;
 

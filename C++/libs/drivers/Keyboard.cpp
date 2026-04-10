@@ -1,6 +1,7 @@
 #include "TypeDefs.h"
 #include "KBSCodesS1.h"
-#include "TextPrint.cpp"
+#include "TextPrint.h"
+
 #include "Keyboard.h"
 
 bool LShift = false;
