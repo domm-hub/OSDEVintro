@@ -6,6 +6,12 @@ INPUT
 (
     bin/O/ExtendedProgram.o
     bin/O/Kernel.o
+    bin/O/IDT.o
+    bin/O/IO.o
+    bin/O/Keyboard.o
+    bin/O/MemoryMap.o
+    bin/O/TextPrint.o
+    bin/O/Heap.o
     bin/O/Binaries.o
 )
 

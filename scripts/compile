@@ -7,15 +7,22 @@ nasm -f bin   ASM/Sector1/bootloader.asm        -o bin/O/bootloader.bin
 nasm -f elf64 ASM/Sector2+/ExtendedProgram.asm  -o bin/O/ExtendedProgram.o
 nasm -f elf64 ASM/SecImport/Binaries.asm        -o bin/O/Binaries.o
 
-x86_64-elf-g++ -ffreestanding -mno-red-zone -m64 -fno-exceptions -fno-rtti -c -O0 -msse -I "C++/headers" "C++/Kernel.cpp" -o "bin/O/Kernel.o"
+df="C++/libs/drivers"
+dx="C++/libs"
+args="-ffreestanding -mno-red-zone -m64 -fno-exceptions -fno-rtti -c -O0 -msse -I C++/headers -Ttext 0x8000"
+out="bin/O"
+
+x86_64-elf-g++ $=args  "C++/Kernel.cpp"           -o "$out/Kernel.o"
+x86_64-elf-g++ $=args  "$df/IO.cpp"               -o "$out/IO.o"
+x86_64-elf-g++ $=args  "$df/Keyboard.cpp"         -o "$out/Keyboard.o"
+x86_64-elf-g++ $=args  "$df/TextPrint.cpp"        -o "$out/TextPrint.o"
+x86_64-elf-g++ $=args  "$dx/Memory/Heap.cpp"      -o "$out/Heap.o"
+x86_64-elf-g++ $=args  "$dx/IDT.cpp"              -o "$out/IDT.o"
+x86_64-elf-g++ $=args  "$dx/Memory/MemoryMap.cpp" -o "$out/MemoryMap.o"
+
 
 x86_64-elf-ld -T link.ld
 
-# Create an empty 1.44MB floppy image
 dd if=/dev/zero of=bootable/bootloader.flp bs=512 count=2880 status=none
-
-# Write the bootloader to the first sector
 dd if=bin/O/bootloader.bin of=bootable/bootloader.flp bs=512 count=1 conv=notrunc status=none
-
-# Write the kernel starting from the second sector
 dd if=bin/kernel.bin of=bootable/bootloader.flp bs=512 seek=1 conv=notrunc status=none

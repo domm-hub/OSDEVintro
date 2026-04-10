@@ -5,7 +5,7 @@
 
 #include "IDT.h"
 
-void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
+void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr) = 0;
 
 void MakeIDTEntry(uint_64 handler, uint_16 index, uint_8 selector, uint_8 types_attr){
     uint_64 off1 = 0x000000000000FFFF;
