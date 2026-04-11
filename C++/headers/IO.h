@@ -13,7 +13,11 @@
 
 #define PIC_EOI        0x20
 
+__attribute__((no_caller_saved_registers))
 void outb(uint_16 port, uint_8 val);
 
+__attribute__((no_caller_saved_registers))
 uint_8 inb(uint_16 port);
+
+void activate_sse();
 void RemapPic();

@@ -1,54 +1,42 @@
 OUTPUT_FORMAT(binary)
-
 ENTRY(_start)
-
-INPUT
-(
-    bin/O/ExtendedProgram.o
-    bin/O/Kernel.o
-    bin/O/IDT.o
-    bin/O/IO.o
-    bin/O/Keyboard.o
-    bin/O/MemoryMap.o
-    bin/O/TextPrint.o
-    bin/O/Heap.o
-    bin/O/Binaries.o
-    bin/O/Memory.o
-)
-
-OUTPUT
-(
-    bin/kernel.bin
-)
 
 SECTIONS
 {
-    . = 0x8000;
+    /* UEFI kernels are often loaded at higher addresses, 
+       but for a flat binary loaded by your bootloader, 
+       any safe address works. 0x100000 (1MB) is common. */
+    . = 0x100000;
 
     .text : 
     {
         *(.text)
         *(.text.*)
-        *(.rodata)      /* Moved strings up here! */
-        *(.rodata.*)    /* Added the SSE wildcard! */
     }
 
-    .idt BLOCK(0x1000) : ALIGN(0x1000)
+    .rodata : 
     {
-        _idt = .;
-        . = . + 0x1000;
+        *(.rodata)
+        *(.rodata.*)
     }
-    
+
     .data : ALIGN(0x1000)
     {
         *(.data)
+        *(.data.*)
     }
-    
-    /* Deleted the old .rodata section from here entirely */
 
     .bss : ALIGN(0x1000)
     {
         *(COMMON)
         *(.bss)
+        *(.bss.*)
+    }
+
+    /* Keep the IDT section if you still use it in the kernel */
+    .idt : ALIGN(0x1000)
+    {
+        _idt = .;
+        . = . + 0x1000;
     }
 }

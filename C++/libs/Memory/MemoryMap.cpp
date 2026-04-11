@@ -5,31 +5,32 @@
 
 MemoryMapEntry* UsableMemoryRegions[10];
 uint_8 UsableMemoryRegionsCount;
+uint_8 MemoryRegionCount = 0;
 
-void PrintMemoryMap(MemoryMapEntry* memoryMap, uint_16 position){
-    SetCursorPosition(position);
+// void PrintMemoryMap(MemoryMapEntry* memoryMap, uint_16 position){
+//     SetCursorPosition(position);
 
-    PrintString("Memory Base: ");
-    PrintString(IntegerToString(memoryMap->BaseAddress));
+//     PrintString("Memory Base: ");
+//     PrintString(IntegerToString(memoryMap->BaseAddress));
 
-    SetCursorPosition(position+80);
+//     SetCursorPosition(position+80);
 
-    PrintString("Region Length: ");
-    PrintString(IntegerToString(memoryMap->RegionLength));
+//     PrintString("Region Length: ");
+//     PrintString(IntegerToString(memoryMap->RegionLength));
 
-    SetCursorPosition(position+160);
+//     SetCursorPosition(position+160);
 
-    PrintString("Memory Type: ");
-    PrintString(IntegerToString(memoryMap->RegionType));
+//     PrintString("Memory Type: ");
+//     PrintString(IntegerToString(memoryMap->RegionType));
 
-    SetCursorPosition(position+240);
+//     SetCursorPosition(position+240);
 
-    PrintString("Memory Attributes: ");
-    PrintString("0x");
-    PrintString(HexToString(memoryMap->ExtendedAttributes));
+//     PrintString("Memory Attributes: ");
+//     PrintString("0x");
+//     PrintString(HexToString(memoryMap->ExtendedAttributes));
 
-    SetCursorPosition(position+400);
-}
+//     SetCursorPosition(position+400);
+// }
 
 bool MemoryRegionsGot = false;
 
