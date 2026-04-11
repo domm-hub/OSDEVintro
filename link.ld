@@ -13,6 +13,7 @@ INPUT
     bin/O/TextPrint.o
     bin/O/Heap.o
     bin/O/Binaries.o
+    bin/O/Memory.o
 )
 
 OUTPUT
