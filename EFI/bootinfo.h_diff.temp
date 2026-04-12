@@ -1,0 +1,28 @@
+#pragma once
+
+typedef unsigned long long uint64_t;
+typedef unsigned int uint32_t;
+
+struct Framebuffer {
+    void* BaseAddress;
+    uint64_t BufferSize;
+    uint32_t Width;
+    uint32_t Height;
+    uint32_t PixelsPerScanLine;
+};
+
+struct PSF1_Header {
+    unsigned char magic[2];     // 0x36, 0x04
+    unsigned char mode;         // 0=256 chars, 1=512, etc.
+    unsigned char charsize;     // Height of the character
+};
+
+struct PSF1_Font {
+    PSF1_Header* header;
+    void* glyphBuffer;
+};
+
+struct BootInfo {
+    Framebuffer* fb;
+    PSF1_Font* font;
+};
