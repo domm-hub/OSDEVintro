@@ -8,7 +8,37 @@
 bool LShift = false;
 bool RShift = false;
 
-__attribute__((no_caller_saved_registers))
 void KeyboardHandler(uint_8 scanCode, uint_8 chr){
-    GlobalRenderer->PutChar(chr);
+
+if (chr != 0 && scanCode < 0x80) {
+    switch (RShift | LShift){
+        case false:
+            GlobalPutChar(chr);
+        case true:
+            GlobalPutChar(KBSet1::ShiftScanCodeLookupTable[scanCode]);
+    }
+    
+} else {
+    // Modifier or Key Release Handling
+    switch (scanCode) {
+        // --- Shift Pressed ---
+        case 0x2A: 
+            LShift = true;
+            break;
+        case 0x36: 
+            RShift = true;
+            break;
+
+        // --- Shift Released ---
+        case 0xAA: 
+            RShift = true;
+            break;
+        case 0xB6:
+            RShift = false;
+            break;
+        default:
+            break;
+    }
+}
+
 }
