@@ -98,6 +98,7 @@ void CombineFreeSegments(MemorySegmentHeader* a, MemorySegmentHeader* b){
 
 
 void free(void* address){
+    if (address == nullptr) return;
     MemorySegmentHeader* current;
     AlignedMemorySegmentHeader* ASMH = (AlignedMemorySegmentHeader*)address - 1;
     if (ASMH->isAligned){
@@ -105,11 +106,9 @@ void free(void* address){
     } else {
         current = ((MemorySegmentHeader*)address) - 1;
     }
-    current = ((MemorySegmentHeader*)address) - 1;
     current->Free = true;
 
     if (current < FirstFreeMemorySegment) FirstFreeMemorySegment = current;
-
 
     if (current->NextFreeSegment != 0){
         if (current->NextFreeSegment->PreviousFreeSegment < current){
@@ -140,7 +139,7 @@ void free(void* address){
 
 void* calloc(uint_64 size){
     void* mallocVal = malloc(size);
-    memset(mallocVal, 0, size);
+    if (mallocVal != nullptr) memset(mallocVal, 0, size);
     return mallocVal;
 }
 
@@ -150,6 +149,12 @@ void* calloc(uint_64 num, uint_64 size) {
 
 
 void* realloc(void* address, uint_64 newSize){
+    if (address == nullptr) return malloc(newSize);
+    if (newSize == 0) {
+        free(address);
+        return nullptr;
+    }
+
     MemorySegmentHeader* oldsegment;
     AlignedMemorySegmentHeader* ASMH = (AlignedMemorySegmentHeader*)address - 1;
     if (ASMH->isAligned){
@@ -163,8 +168,10 @@ void* realloc(void* address, uint_64 newSize){
         smallerSize = oldsegment->MemoryLength;
     }
     void* newMem = malloc(newSize);
-    memcpy(newMem, address, smallerSize);
-    free(address);
+    if (newMem != nullptr) {
+        memcpy(newMem, address, smallerSize);
+        free(address);
+    }
     return newMem;
 }
 
@@ -192,4 +199,40 @@ void* aligned_alloc(uint_64 alignment, uint_64 size){
         ASMH->MemorySegmentHeaderAddress = (uint_64)mallocVal-sizeof(MemorySegmentHeader);
     }
     return (void*)address;
+}
+
+// Safely copies memory even if the source and destination overlap
+void* memmove(void* dest, const void* src, size_t n) {
+    unsigned char* d = (unsigned char*)dest;
+    const unsigned char* s = (const unsigned char*)src;
+
+    if (d == s) {
+        return dest;
+    }
+
+    if (d < s) {
+        // Destination is before source: Copy forward (like memcpy)
+        for (size_t i = 0; i < n; i++) {
+            d[i] = s[i];
+        }
+    } else {
+        // Destination is after source: Overlap! Copy backward
+        for (size_t i = n; i > 0; i--) {
+            d[i - 1] = s[i - 1];
+        }
+    }
+
+    return dest;
+}
+
+int memcmp(const void* s1, const void* s2, size_t n) {
+    const unsigned char* p1 = (const unsigned char*)s1;
+    const unsigned char* p2 = (const unsigned char*)s2;
+
+    for (size_t i = 0; i < n; i++) {
+        if (p1[i] != p2[i]) {
+            return p1[i] - p2[i];
+        }
+    }
+    return 0;
 }

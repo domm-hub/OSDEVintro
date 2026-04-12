@@ -17,21 +17,6 @@ Poncho is an OS dev teacher on YT.
   - Tell me how to backup
 
 ### What I'm experiencing
-  - IDT not working
-  - Triple fault on keypress
-
-### What I tried:
-  - Making the handler a function
-  - Removing `&`
-  - Changing the RemapPic
-  - Changing IRQ to `33`
-
-### Info
-  - I think because my RemapPic is different, `IRQ 1` is the same of `IRQ 33` when it is remapped differently.
-  - _idt is defined in ./link.ld
-
-### EMERGENCIES:
-  - Restore repo to commit `git restore --source 8a68849 --staged --worktree .`
 
 ### Basic info to reduce requests time
   - Tree: 

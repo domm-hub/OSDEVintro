@@ -16,6 +16,7 @@ struct IDT64 {
 } __attribute__((packed));
 
 extern IDT64 _idt[256];
+extern "C" __attribute__((interrupt)) void isr0(void* frame);
 extern "C" __attribute__((interrupt)) void isr1(void* frame);
 extern "C" __attribute__((interrupt)) void isr13(void* frame, uint_64 errorCode);
 extern "C" void LoadIDT();

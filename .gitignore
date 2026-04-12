@@ -8,3 +8,5 @@ bin/
 .git/
 .vscode/
 temp/
+*.o
+*.efi

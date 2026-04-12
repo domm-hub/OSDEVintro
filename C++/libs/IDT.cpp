@@ -3,6 +3,7 @@
 #include "BasicRenderer.h"
 #include "KBSCodesS1.h"
 #include "IDT.h"
+#include "PIT.h"
 
 __attribute__((no_caller_saved_registers))
 void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr) = 0;
@@ -15,11 +16,12 @@ struct IDTR {
 
 IDT64 _idt[256];
 
-// External assembly symbols (if you re-add them) or C++ handlers
+// External assembly symbols
+extern "C" __attribute__((interrupt)) void isr0(void* frame);
 extern "C" __attribute__((interrupt)) void isr1(void* frame);
 extern "C" __attribute__((interrupt)) void isr13(void* frame, uint_64 errorCode);
 
-// Define LoadIDT using inline assembly since ASM folder is gone
+// Define LoadIDT using inline assembly
 extern "C" void LoadIDT() {
     IDTR idtr;
     idtr.Limit = (sizeof(IDT64) * 256) - 1;
@@ -33,15 +35,19 @@ uint_16 GetCS() {
     return cs;
 }
 
-// Dummy ISRs to satisfy linker until you re-implement them
-// Note: Real ISRs need proper assembly wrappers or __attribute__((interrupt))
+// Timer ISR
+extern "C" __attribute__((interrupt)) void isr0(void* frame) {
+    PIT::Tick();
+    outb(0x20, 0x20);
+}
+
+// Keyboard ISR
 extern "C" __attribute__((interrupt)) void isr1(void* frame) {
     uint_8 scanCode = inb(0x60);
     if (MainKeyboardHandler != 0){
         MainKeyboardHandler(scanCode, KBSet1::ScanCodeLookupTable[scanCode]);
     }
     outb(0x20, 0x20);
-
 }
 
 extern "C" __attribute__((interrupt)) void isr13(void* frame, uint_64 errorCode) {
@@ -58,7 +64,15 @@ void MakeIDTEntry(uint_64 handler, uint_16 index, uint_16 selector, uint_8 types
     _idt[index].reserved    =  0;
 }
 
+void DisableAPIC() {
+    uint_32 lo, hi;
+    __asm__ volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(0x1B));
+    lo &= ~(1 << 11); // Clear APIC Software Enable bit
+    __asm__ volatile("wrmsr" : : "a"(lo), "d"(hi), "c"(0x1B));
+}
+
 void InitializeIDT(){
+    DisableAPIC();
     RemapPic();
     
     uint_16 cs = GetCS();
@@ -68,10 +82,11 @@ void InitializeIDT(){
         GlobalRenderer->Print("\n");
     }
 
+    MakeIDTEntry((uint_64)isr0, 32, cs, 0x8e);
     MakeIDTEntry((uint_64)isr1, 33, cs, 0x8e);
     MakeIDTEntry((uint_64)isr13, 13, cs, 0x8e);
 
-    outb(0x21, 0xfd);
+    outb(0x21, 0xfc); // Enable IRQ0 and IRQ1
     outb(0xA1, 0xff);
     LoadIDT();
 }

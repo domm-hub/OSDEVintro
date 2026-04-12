@@ -45,6 +45,7 @@ LDFLAGS = -flavor link \
           -nodefaultlib
 
 # Kernel Objects - Full List
+# Kernel Objects - Full List
 KERNEL_OBJS = entry.o \
               Kernel.o \
               Framebuffer.o \
@@ -52,12 +53,14 @@ KERNEL_OBJS = entry.o \
               IO.o \
               IDT.o \
               Keyboard.o \
+              PIT.o \
               TextPrint.o \
               Heap.o \
               Memory.o \
               MemoryMap.o \
               GDT.o \
               gdt_wrapper.o \
+              str.o \
               font.o
 
 all: bootx64.efi kernel.bin
@@ -71,7 +74,7 @@ bootx64.efi: bootloader.o
 
 # Compile Kernel Files
 entry.o: ../C++/libs/entry.S
-	$(CC) -target x86_64-unknown-none -c $< -o $@
+	$(CC) -target x86_64-unknown-none -fno-pic -fno-plt -c $< -o $@
 
 Kernel.o: ../C++/Kernel.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -91,6 +94,9 @@ IDT.o: ../C++/libs/IDT.cpp
 Keyboard.o: ../C++/libs/drivers/Keyboard.cpp
 	$(CXX) $(ISR_CXXFLAGS) -c $< -o $@
 
+PIT.o: ../C++/libs/drivers/PIT.cpp
+	$(CXX) $(ISR_CXXFLAGS) -c $< -o $@
+
 TextPrint.o: ../C++/libs/drivers/TextPrint.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -103,13 +109,16 @@ Memory.o: ../C++/libs/Memory/Memory.cpp
 MemoryMap.o: ../C++/libs/Memory/MemoryMap.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-Vector.cpp: ../C++/libs/data/Vector.cpp
+str.o: ../C++/libs/data/str.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 GDT.o: ../C++/libs/Memory/GDT.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 gdt_wrapper.o: ../C++/libs/Memory/gdt_wrapper.S
+	$(CC) -target x86_64-unknown-none -c $< -o $@
+
+setjmp.o: ../C++/libs/setjmp.S
 	$(CC) -target x86_64-unknown-none -c $< -o $@
 
 # Convert font.psf to an object file using clang (cross-compiles correctly)
@@ -139,3 +148,4 @@ clean:
 	rm -rf *.o bootx64.efi kernel.bin esp/
 
 .PHONY: all deploy run clean
+NY: clean all deploy run clean
