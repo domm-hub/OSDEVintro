@@ -27,6 +27,20 @@ uint_8 inb(uint_16 port){
     return returnVal;
 }
 
+__attribute__((no_caller_saved_registers))
+void outl(uint_16 port, uint_32 val){
+    asm volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
+}
+
+__attribute__((no_caller_saved_registers))
+uint_32 inl(uint_16 port){
+    uint_32 returnVal;
+    asm volatile ("inl %1, %0" 
+    : "=a"(returnVal)
+    : "Nd"(port));
+    return returnVal;
+}
+
 void activate_sse() {
     __asm__ __volatile__ (
         "mov %%cr0, %%rax\n\t"

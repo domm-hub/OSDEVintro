@@ -99,13 +99,7 @@ void CombineFreeSegments(MemorySegmentHeader* a, MemorySegmentHeader* b){
 
 void free(void* address){
     if (address == nullptr) return;
-    MemorySegmentHeader* current;
-    AlignedMemorySegmentHeader* ASMH = (AlignedMemorySegmentHeader*)address - 1;
-    if (ASMH->isAligned){
-        current = (MemorySegmentHeader*)(uint_64)ASMH->MemorySegmentHeaderAddress;
-    } else {
-        current = ((MemorySegmentHeader*)address) - 1;
-    }
+    MemorySegmentHeader* current = ((MemorySegmentHeader*)address) - 1;
     current->Free = true;
 
     if (current < FirstFreeMemorySegment) FirstFreeMemorySegment = current;
@@ -113,7 +107,6 @@ void free(void* address){
     if (current->NextFreeSegment != 0){
         if (current->NextFreeSegment->PreviousFreeSegment < current){
             current->NextFreeSegment->PreviousFreeSegment = current;
-
         }
     }
     if (current->PreviousFreeSegment != 0){
@@ -155,13 +148,7 @@ void* realloc(void* address, uint_64 newSize){
         return nullptr;
     }
 
-    MemorySegmentHeader* oldsegment;
-    AlignedMemorySegmentHeader* ASMH = (AlignedMemorySegmentHeader*)address - 1;
-    if (ASMH->isAligned){
-        oldsegment = (MemorySegmentHeader*)(uint_64)ASMH->MemorySegmentHeaderAddress;
-    } else {
-        oldsegment = ((MemorySegmentHeader*)address) - 1;
-    }
+    MemorySegmentHeader* oldsegment = ((MemorySegmentHeader*)address) - 1;
 
     uint_64 smallerSize = newSize;
     if (oldsegment->MemoryLength < newSize){

@@ -27,3 +27,4 @@ void* calloc(uint_64 size);
 void* realloc(void* address, uint_64 newSize);
 
 void* aligned_alloc(uint_64 alignment, uint_64 size);
+

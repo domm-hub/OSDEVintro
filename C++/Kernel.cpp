@@ -7,6 +7,9 @@
 #include "headers/Heap.h"
 #include "headers/PIT.h"
 #include "str.h"
+#include "fat32.h"
+#include "Vector.h"
+#include "headers/AHCI.h"
 
 // Define these symbols from the embedded font
 extern "C" char _binary_font_psf_start;
@@ -45,6 +48,15 @@ void operator delete[](void* p, unsigned long size) {
 static Framebuffer kernel_fb;
 static PSF1_Font kernel_font;
 
+bool DiskReadWrapper(uint64_t lba, uint32_t count, void* buffer) {
+    if (AHCI::GlobalAHCIDriver != nullptr && AHCI::GlobalAHCIDriver->portCount > 0) {
+        return AHCI::GlobalAHCIDriver->ports[0]->Read(lba, count, buffer);
+    }
+    return false;
+}
+
+FAT32::Driver* globalFat32Driver = nullptr;
+
 extern "C" void kernel_main(BootInfo* bootInfo) {
     // 1. Initialize GDT immediately for safety
     InitializeGDT();
@@ -80,36 +92,67 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
     InitializeIDT();
     MainKeyboardHandler = KeyboardHandler;
     GlobalRenderer->Print("IDT Initialized.\n");
-    GlobalRenderer->Print("Trying Dynamic String\n");
-
-    String str = String();
-    GlobalRenderer->Print("Comparing String(HI) and HI\n");
-    str = "HI";
-    if (str == "HI"){
-        GlobalRenderer->Print("Assertion Complete\n\n");
-    } else {
-        GlobalRenderer->Print("Assertion Failed\n\n");
-    }
-
-    GlobalRenderer->Print("Trying to print value String(HI)\n");
-    GlobalRenderer->Print(str + "\n");
-    GlobalRenderer->Print("Ok...\n Trying adding strings.\n Printing:");
-    String str2 = String();
-    str2 = " Hello!";
-    String str3 = str + str2;
-    GlobalRenderer->Print(str3);
-
-
     
     PIT::SetFrequency(100);
-    GlobalRenderer->Print("PIT Initialized (100 Hz).\n");
+    GlobalRenderer->Print("\nPIT Initialized (100 Hz).\n");
+
+    AHCI::Init();
 
     GlobalRenderer->Print("Enabling Interrupts...\n");
     __asm__ volatile ("sti");
     GlobalRenderer->Print("Interrupts Enabled.\n");
 
-    GlobalRenderer->Print("adam@OS:/>");
-    GlobalRenderer->PromptSize = GlobalRenderer->BufferSize;
-
-    while(1) { __asm__("hlt"); }
+    while(1) { 
+        String input = prompt("adam@OS:/>");
+        
+        if (input.size() == 0) {
+            continue;
+        }
+        
+        if (input == "clear") {
+            GlobalRenderer->Clear(GlobalRenderer->ClearColor);
+        } else if (input == "time") {
+            GlobalRenderer->Print("Time since boot: ");
+            GlobalRenderer->Print(IntegerToString(PIT::TimeSinceBootMS / 1000));
+            GlobalRenderer->Print(".");
+            uint_64 ms_frac = (PIT::TimeSinceBootMS % 1000) / 10;
+            if (ms_frac < 10) GlobalRenderer->Print("0");
+            GlobalRenderer->Print(IntegerToString(ms_frac));
+            GlobalRenderer->Print(" s\n");
+        } else if (input == "fs") {
+            if (AHCI::GlobalAHCIDriver != nullptr && AHCI::GlobalAHCIDriver->portCount > 0) {
+                globalFat32Driver = new FAT32::Driver(DiskReadWrapper);
+                GlobalRenderer->Print("FAT32 Driver Initialized on AHCI Port 0.\n");
+            } else {
+                GlobalRenderer->Print("Error: No active AHCI drive found to mount.\n");
+            }
+        } else if (input == "ls") {
+            if (globalFat32Driver == nullptr) {
+                GlobalRenderer->Print("Error: File system not mounted. Run 'fs' first.\n");
+            } else {
+                Vector<FAT32::File> files = globalFat32Driver->ListDirectory(globalFat32Driver->bpb.root_cluster);
+                if (files.size() == 0) {
+                    GlobalRenderer->Print("Directory is empty or error reading.\n");
+                } else {
+                    for (int i = 0; i < files.size(); i++) {
+                        GlobalRenderer->Print(files[i].Name);
+                        if (files[i].IsDirectory) {
+                            GlobalRenderer->Print(" [DIR]");
+                        } else {
+                            GlobalRenderer->Print(" (");
+                            GlobalRenderer->Print(IntegerToString(files[i].Size));
+                            GlobalRenderer->Print(" bytes)");
+                        }
+                        GlobalRenderer->Print("\n");
+                    }
+                }
+            }
+        } else if (input == "help") {
+            GlobalRenderer->Print("Available commands: clear, time, fs, ls, help\n");
+        } else {
+            GlobalRenderer->Print("Unknown command: ");
+            GlobalRenderer->Print(input);
+            GlobalRenderer->Print("\n");
+        }
+    }
 }

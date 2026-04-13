@@ -19,5 +19,11 @@ void outb(uint_16 port, uint_8 val);
 __attribute__((no_caller_saved_registers))
 uint_8 inb(uint_16 port);
 
+__attribute__((no_caller_saved_registers))
+void outl(uint_16 port, uint_32 val);
+
+__attribute__((no_caller_saved_registers))
+uint_32 inl(uint_16 port);
+
 void activate_sse();
 void RemapPic();

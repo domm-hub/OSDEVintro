@@ -6,6 +6,10 @@ CXX = $(LIMA) clang++
 LD = $(LIMA) ld.lld
 OBJCOPY = $(LIMA) objcopy
 
+FS_IMG = fat32_disk.img
+FS_CONTENTS = Text1.txt Text2.txt
+
+
 # UEFI Flags
 CFLAGS = -target x86_64-unknown-windows \
          -ffreestanding \
@@ -45,7 +49,6 @@ LDFLAGS = -flavor link \
           -nodefaultlib
 
 # Kernel Objects - Full List
-# Kernel Objects - Full List
 KERNEL_OBJS = entry.o \
               Kernel.o \
               Framebuffer.o \
@@ -54,6 +57,9 @@ KERNEL_OBJS = entry.o \
               IDT.o \
               Keyboard.o \
               PIT.o \
+              PCI.o \
+              AHCI.o \
+              fat32.o \
               TextPrint.o \
               Heap.o \
               Memory.o \
@@ -97,6 +103,15 @@ Keyboard.o: ../C++/libs/drivers/Keyboard.cpp
 PIT.o: ../C++/libs/drivers/PIT.cpp
 	$(CXX) $(ISR_CXXFLAGS) -c $< -o $@
 
+PCI.o: ../C++/libs/drivers/PCI.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+AHCI.o: ../C++/libs/drivers/AHCI.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+fat32.o: ../C++/libs/drivers/fat32.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 TextPrint.o: ../C++/libs/drivers/TextPrint.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -135,14 +150,30 @@ deploy: all
 	@cp kernel.bin esp/kernel.bin
 	@printf "\\\EFI\\\BOOT\\\BOOTX64.EFI\r\n" > esp/startup.nsh
 
-# Run using QEMU
-run: deploy
+$(FS_IMG):
+	@echo "Creating 20MB FAT32 disk image..."
+	dd if=/dev/zero of=$(FS_IMG) bs=1M count=20
+	mkfs.fat -F 32 $(FS_IMG)
+	echo "Hello from Text1!" > Text1.txt
+	echo "Hello from Text2! \n HeHeHe" > Text2.txt
+	mcopy -i $(FS_IMG) Text1.txt ::/
+	mcopy -i $(FS_IMG) Text2.txt ::/
+
+
+run: deploy $(FS_IMG)
 	qemu-system-x86_64 \
 		-drive if=pflash,format=raw,readonly=on,file=OVMF/OVMF_CODE-pure-efi.fd \
 		-drive if=pflash,format=raw,file=OVMF/OVMF_VARS-pure-efi.fd \
 		-drive format=raw,file=fat:rw:esp \
+		-drive id=disk,file=$(FS_IMG),if=none,format=raw \
+		-device ahci,id=ahci \
+		-device ide-hd,drive=disk,bus=ahci.0 \
 		-m 256M \
-		-net none
+		-net none \
+		-d int \
+		-D logs.txt
+
+# Hi
 
 clean:
 	rm -rf *.o bootx64.efi kernel.bin esp/
