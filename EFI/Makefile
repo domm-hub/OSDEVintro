@@ -67,9 +67,11 @@ KERNEL_OBJS = entry.o \
               GDT.o \
               gdt_wrapper.o \
               str.o \
-              font.o
+              font.o \
+              userspace.o \
+              Syscalls.o
 
-all: bootx64.efi kernel.bin
+all: bootx64.efi kernel.bin user_program.bin
 
 # Compile UEFI Bootloader
 bootloader.o: bootloader.c
@@ -127,6 +129,12 @@ MemoryMap.o: ../C++/libs/Memory/MemoryMap.cpp
 str.o: ../C++/libs/data/str.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+Syscalls.o: ../C++/libs/Syscalls.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+userspace.o: ../C++/libs/userspace.S
+	$(CC) -target x86_64-unknown-none -c $< -o $@
+
 GDT.o: ../C++/libs/Memory/GDT.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -144,10 +152,17 @@ font.o: font_wrapper.S font.psf
 kernel.bin: $(KERNEL_OBJS)
 	$(LD) -flavor gnu -T ../link.ld -o $@ $(KERNEL_OBJS)
 
+user_program.o: ../C++/user_program.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+user_program.bin: user_program.o
+	$(LD) -flavor gnu --section-start .text=0x0 --oformat binary -o $@ $<
+
 deploy: all
 	@mkdir -p esp/EFI/BOOT
 	@cp bootx64.efi esp/EFI/BOOT/BOOTX64.EFI
 	@cp kernel.bin esp/kernel.bin
+	@cp user_program.bin esp/user_program.bin
 	@printf "\\\EFI\\\BOOT\\\BOOTX64.EFI\r\n" > esp/startup.nsh
 
 $(FS_IMG):
@@ -158,6 +173,7 @@ $(FS_IMG):
 	echo "Hello from Text2! \n HeHeHe" > Text2.txt
 	mcopy -i $(FS_IMG) Text1.txt ::/
 	mcopy -i $(FS_IMG) Text2.txt ::/
+	mcopy -i $(FS_IMG) user_program.bin ::/
 
 
 run: deploy $(FS_IMG)

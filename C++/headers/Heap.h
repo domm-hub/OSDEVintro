@@ -28,3 +28,6 @@ void* realloc(void* address, uint_64 newSize);
 
 void* aligned_alloc(uint_64 alignment, uint_64 size);
 
+inline void* operator new(size_t, void* p) throw() { return p; }
+inline void* operator new[](size_t, void* p) throw() { return p; }
+

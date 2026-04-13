@@ -14,11 +14,10 @@
 // End of Interrupt (EOI) command
 #define PIC_EOI        0x20
 
-__attribute__((no_caller_saved_registers))
 void outb(uint_16 port, uint_8 val){
     asm volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
-__attribute__((no_caller_saved_registers))
+
 uint_8 inb(uint_16 port){
     uint_8 returnVal;
     asm volatile ("inb %1, %0" 
@@ -27,18 +26,28 @@ uint_8 inb(uint_16 port){
     return returnVal;
 }
 
-__attribute__((no_caller_saved_registers))
 void outl(uint_16 port, uint_32 val){
     asm volatile ("outl %0, %1" : : "a"(val), "Nd"(port));
 }
 
-__attribute__((no_caller_saved_registers))
 uint_32 inl(uint_16 port){
     uint_32 returnVal;
     asm volatile ("inl %1, %0" 
     : "=a"(returnVal)
     : "Nd"(port));
     return returnVal;
+}
+
+void wrmsr(uint_32 msr, uint_64 value) {
+    uint_32 low = (uint_32)value;
+    uint_32 high = (uint_32)(value >> 32);
+    __asm__ volatile ("wrmsr" : : "c"(msr), "a"(low), "d"(high));
+}
+
+uint_64 rdmsr(uint_32 msr) {
+    uint_32 low, high;
+    __asm__ volatile ("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+    return ((uint_64)high << 32) | low;
 }
 
 void activate_sse() {

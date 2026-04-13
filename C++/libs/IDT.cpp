@@ -71,6 +71,8 @@ void DisableAPIC() {
     __asm__ volatile("wrmsr" : : "a"(lo), "d"(hi), "c"(0x1B));
 }
 
+extern "C" __attribute__((interrupt)) void isr14(void* frame, uint_64 errorCode);
+
 void InitializeIDT(){
     DisableAPIC();
     RemapPic();
@@ -85,10 +87,26 @@ void InitializeIDT(){
     MakeIDTEntry((uint_64)isr0, 32, cs, 0x8e);
     MakeIDTEntry((uint_64)isr1, 33, cs, 0x8e);
     MakeIDTEntry((uint_64)isr13, 13, cs, 0x8e);
+    MakeIDTEntry((uint_64)isr14, 14, cs, 0x8e);
 
     outb(0x21, 0xfc); // Enable IRQ0 and IRQ1
     outb(0xA1, 0xff);
     LoadIDT();
+}
+
+extern "C" __attribute__((interrupt)) void isr14(void* frame, uint_64 errorCode) {
+    uint_64 cr2;
+    __asm__ volatile("mov %%cr2, %0" : "=r"(cr2));
+    
+    if (GlobalRenderer != nullptr) {
+        GlobalRenderer->Clear(0x440000); // Red screen
+        GlobalRenderer->Print("PAGE FAULT\n");
+        GlobalRenderer->Print("Faulting Address: 0x");
+        GlobalRenderer->Print(HexToString(cr2));
+        GlobalRenderer->Print("\nError Code: 0x");
+        GlobalRenderer->Print(HexToString(errorCode));
+    }
+    while(1);
 }
 
 __attribute__((no_caller_saved_registers))
