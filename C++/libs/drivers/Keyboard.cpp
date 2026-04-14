@@ -16,11 +16,12 @@ volatile bool EnterPressed = false;
 String prompt(String prmpt) {
     if (!GlobalRenderer) return String();
 
+    // Reset state explicitly for EVERY prompt call
+    EnterPressed = false; 
+    isPrompting = true;
+    
     GlobalRenderer->Print(prmpt.c_str());
     GlobalRenderer->PromptSize = GlobalRenderer->BufferSize;
-    
-    EnterPressed = false;
-    isPrompting = true;
     
     while (!EnterPressed) {
         __asm__ volatile ("hlt");

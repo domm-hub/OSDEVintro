@@ -109,7 +109,21 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 
     // 6. Handover
     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Exiting Boot Services...\r\n");
-    SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
+    
+    status = SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
+    
+    if (EFI_ERROR(status)) {
+        // If it failed, the MapKey was probably out of date. 
+        // Get the map one more time and try again.
+        SystemTable->BootServices->GetMemoryMap(&MapSize, pMap, &MapKey, &DescriptorSize, &DescriptorVersion);
+        status = SystemTable->BootServices->ExitBootServices(ImageHandle, MapKey);
+        
+        if (EFI_ERROR(status)) {
+            // If it fails twice, something is seriously wrong.
+            SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Fatal: ExitBootServices failed!\r\n");
+            while(1) { __asm__("hlt"); }
+        }
+    }
     
     void (*KernelEntry)(BootInfo*) = (void (*)(BootInfo*))kernel_entry;
     KernelEntry(&bootInfo);

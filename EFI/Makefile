@@ -33,6 +33,7 @@ CXXFLAGS = -target x86_64-unknown-none \
            -fno-exceptions \
            -fno-rtti \
            -fno-lto \
+           -fno-align-functions \
            -mno-red-zone \
            -I. \
            -I ../C++/headers \
@@ -69,7 +70,8 @@ KERNEL_OBJS = entry.o \
               str.o \
               font.o \
               userspace.o \
-              Syscalls.o
+              Syscalls.o \
+              setjmp.o
 
 all: bootx64.efi kernel.bin user_program.bin
 
@@ -168,12 +170,12 @@ deploy: all
 $(FS_IMG):
 	@echo "Creating 20MB FAT32 disk image..."
 	dd if=/dev/zero of=$(FS_IMG) bs=1M count=20
-	mkfs.fat -F 32 $(FS_IMG)
-	echo "Hello from Text1!" > Text1.txt
-	echo "Hello from Text2! \n HeHeHe" > Text2.txt
-	mcopy -i $(FS_IMG) Text1.txt ::/
-	mcopy -i $(FS_IMG) Text2.txt ::/
-	mcopy -i $(FS_IMG) user_program.bin ::/
+	$(LIMA) mkfs.fat -F 32 $(FS_IMG)
+	@echo "Hello from Text1!" > Text1.txt
+	@echo "Hello from Text2! \n HeHeHe" > Text2.txt
+	$(LIMA) mcopy -i $(FS_IMG) Text1.txt ::/
+	$(LIMA) mcopy -i $(FS_IMG) Text2.txt ::/
+	$(LIMA) mcopy -i $(FS_IMG) user_program.bin ::/
 
 
 run: deploy $(FS_IMG)
@@ -192,7 +194,6 @@ run: deploy $(FS_IMG)
 # Hi
 
 clean:
-	rm -rf *.o bootx64.efi kernel.bin esp/
+	rm -rf *.o bootx64.efi kernel.bin user_program.bin esp/ $(FS_IMG) Text1.txt Text2.txt
 
 .PHONY: all deploy run clean
-NY: clean all deploy run clean

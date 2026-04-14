@@ -14,6 +14,7 @@ struct IDTR {
     uint_64 Offset;
 } __attribute__((packed));
 
+__attribute__((aligned(16)))
 IDT64 _idt[256];
 
 // External assembly symbols
@@ -74,23 +75,25 @@ void DisableAPIC() {
 extern "C" __attribute__((interrupt)) void isr14(void* frame, uint_64 errorCode);
 
 void InitializeIDT(){
-    DisableAPIC();
     RemapPic();
     
-    uint_16 cs = GetCS();
-    if (GlobalRenderer != nullptr) {
-        GlobalRenderer->Print("System Code Segment: 0x");
-        GlobalRenderer->Print(HexToString(cs));
-        GlobalRenderer->Print("\n");
-    }
+    // 1. Mask all interrupts while we set up the IDT
+    outb(0x21, 0xFF);
+    outb(0xA1, 0xFF);
+
+    uint_16 cs = 0x08; 
 
     MakeIDTEntry((uint_64)isr0, 32, cs, 0x8e);
     MakeIDTEntry((uint_64)isr1, 33, cs, 0x8e);
     MakeIDTEntry((uint_64)isr13, 13, cs, 0x8e);
     MakeIDTEntry((uint_64)isr14, 14, cs, 0x8e);
 
-    outb(0x21, 0xfc); // Enable IRQ0 and IRQ1
-    outb(0xA1, 0xff);
+    // 2. Clear any "stray" keys from UEFI keyboard buffer
+    while (inb(0x64) & 1) inb(0x60);
+
+    // 3. Unmask ONLY Timer (IRQ0) and Keyboard (IRQ1)
+    outb(0x21, 0xFC); 
+    
     LoadIDT();
 }
 

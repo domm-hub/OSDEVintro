@@ -12,6 +12,7 @@
 #include "AHCI.h"
 #include "MBR.h"
 #include "Syscalls.h"
+#include "Memory.h"
 
 extern "C" char _binary_font_psf_start;
 extern "C" char _binary_font_psf_end;
@@ -21,8 +22,16 @@ extern "C" void JumpToUser(uint_64 rip, uint_64 rsp);
 extern "C" int __cxa_atexit(void (*func)(void*), void* arg, void* dso_handle) { return 0; }
 void* __dso_handle = (void*)0;
 
-void* operator new(unsigned long size) { return malloc(size); }
-void* operator new[](unsigned long size) { return malloc(size); }
+void* operator new(unsigned long size) { 
+    void* ptr = malloc(size);
+    if (ptr) memset(ptr, 0, size);
+    return ptr; 
+}
+void* operator new[](unsigned long size) { 
+    void* ptr = malloc(size);
+    if (ptr) memset(ptr, 0, size);
+    return ptr; 
+}
 void operator delete(void* p) { free(p); }
 void operator delete(void* p, unsigned long size) { free(p); }
 void operator delete[](void* p) { free(p); }
@@ -40,7 +49,9 @@ String operator+(const char* lhs, const String& rhs) {
 
 bool DiskReadWrapper(uint64_t lba, uint32_t count, void* buffer) {
     if (AHCI::GlobalAHCIDriver != nullptr && AHCI::GlobalAHCIDriver->portCount > 0) {
-        return AHCI::GlobalAHCIDriver->ports[0]->Read(lba, count, buffer);
+        if (AHCI::GlobalAHCIDriver->ports[0] != nullptr) {
+            return AHCI::GlobalAHCIDriver->ports[0]->Read(lba, count, buffer);
+        }
     }
     return false;
 }
@@ -52,12 +63,14 @@ FAT32::Driver* InitStorage() {
 
     uint8_t* sector0 = (uint8_t*)malloc(512);
     if (!DiskReadWrapper(0, 1, sector0)) {
+        if (GlobalRenderer) GlobalRenderer->Print("Disk Read Error (LBA 0)\n", 0xFFFF0000);
         free(sector0);
         return nullptr;
     }
 
     // Check for 0xAA55 signature
     if (sector0[510] != 0x55 || sector0[511] != 0xAA) {
+        if (GlobalRenderer) GlobalRenderer->Print("No Boot Signature (0xAA55 missing)\n", 0xFFFF0000);
         free(sector0);
         return nullptr;
     }
@@ -76,71 +89,128 @@ FAT32::Driver* InitStorage() {
     }
 
     if (foundFat32) {
+        if (GlobalRenderer) GlobalRenderer->Print("Found MBR partition.\n");
         FAT32::Driver* driver = new FAT32::Driver(DiskReadWrapper, partitionOffset);
         free(sector0);
         return driver;
     }
 
     // 2. Try to treat it as a FAT32 Boot Sector (no partition table)
-    // Check for "FAT32   " at offset 0x52
-    if (strncmp((const char*)(sector0 + 0x52), "FAT32", 5) == 0) {
+    // Check for "FAT" string in the EBR (offset 0x52 or 0x36)
+    bool sig52 = (sector0[0x52] == 'F' && sector0[0x53] == 'A' && sector0[0x54] == 'T');
+    bool sig36 = (sector0[0x36] == 'F' && sector0[0x37] == 'A' && sector0[0x38] == 'T');
+
+    if (sig52 || sig36) {
+        if (GlobalRenderer) GlobalRenderer->Print("Found FAT Boot Sector.\n");
         FAT32::Driver* driver = new FAT32::Driver(DiskReadWrapper, 0);
         free(sector0);
         return driver;
     }
 
+    if (GlobalRenderer) {
+        GlobalRenderer->Print("Unknown Partition. Sig52: ");
+        char dump[4] = {(char)sector0[0x52], (char)sector0[0x53], (char)sector0[0x54], 0};
+        GlobalRenderer->Print(dump);
+        GlobalRenderer->Print(" Sig36: ");
+        char dump2[4] = {(char)sector0[0x36], (char)sector0[0x37], (char)sector0[0x38], 0};
+        GlobalRenderer->Print(dump2);
+        GlobalRenderer->Print("\n", 0xFFFF0000);
+    }
     free(sector0);
     return nullptr;
 }
 
+char* simple_split(char* str, char delim) {
+    if (str == 0) return 0;
+
+    while (*str != '\0') {
+        if (*str == delim) {
+            *str = '\0';      // Cut the string here
+            return str + 1;   // Return the start of the next part
+        }
+        str++;
+    }
+    return 0; // No more delimiters found
+}
+
+
 // --- Kernel Main ---
 
 extern "C" void kernel_main(BootInfo* bootInfo) {
-    // 1. Core Hardware Initialization
-    InitializeGDT();
+    if (bootInfo == nullptr || bootInfo->fb == nullptr) {
+        while(1) __asm__("hlt");
+    }
 
-    // Set RSP0 for TSS so interrupts work in user mode
+    // 1. Core Hardware & Memory initialization
+    InitializeGDT();
+    InitializeHeap(0x4000000, 0x1000000); // Move heap to 64MB - safer for most systems
+
+    kernel_fb = *(bootInfo->fb);
+    if (bootInfo->font && bootInfo->font->header) {
+        kernel_font = *(bootInfo->font);
+    } else {
+        // Fallback to embedded font if bootloader didn't provide one
+        PSF1_Header* fontHeader = (PSF1_Header*)&_binary_font_psf_start;
+        kernel_font.header = fontHeader;
+        kernel_font.glyphBuffer = (void*)((uint_64)fontHeader + sizeof(PSF1_Header));
+    }
+
+    GlobalRenderer = new BasicRenderer(&kernel_fb, &kernel_font);
+    GlobalRenderer->Clear(0x00111111); 
+    GlobalRenderer->Print("SYSTEM 15 Kernel Booting...\n", 0xFF00FF00);
+
+    // 2. Extended Hardware Initialization
+    GlobalRenderer->Print("Initializing IDT... ");
+    InitializeIDT();
+    GlobalRenderer->Print("Done.\n", 0xFF00FF00);
+
     uint_64 kernel_stack;
     __asm__ volatile ("mov %%rsp, %0" : "=r"(kernel_stack));
     GlobalTSS.rsp0 = kernel_stack;
 
-    kernel_fb = *(bootInfo->fb);
-    PSF1_Header* fontHeader = (PSF1_Header*)&_binary_font_psf_start;
-    kernel_font.header = fontHeader;
-    kernel_font.glyphBuffer = (void*)((uint_64)fontHeader + sizeof(PSF1_Header));
-
-    InitializeHeap(0x2000000, 0x1000000); 
-
-    GlobalRenderer = new BasicRenderer(&kernel_fb, &kernel_font);
-    GlobalRenderer->Clear(0x00111111); 
-    GlobalRenderer->Print("OS Kernel Booting...\n", 0xFF00FF00);
-
-    activate_sse();
-    InitializeIDT();
     MainKeyboardHandler = KeyboardHandler;
     PIT::SetFrequency(100);
-    AHCI::Init();
-    InitializeSyscalls();
 
+    GlobalRenderer->Print("Initializing AHCI... ");
+    AHCI::Init();
+    GlobalRenderer->Print("Done.\n", 0xFF00FF00);
+
+    activate_sse();
+
+    GlobalRenderer->Print("Enabling Interrupts... ");
     __asm__ volatile ("sti");
+    GlobalRenderer->Print("Done.\n", 0xFF00FF00);
 
     // 2. Storage Initialization
+    GlobalRenderer->Print("Initializing FS");
     globalFat32Driver = InitStorage();
     if (globalFat32Driver) {
-        GlobalRenderer->Print("FAT32 Storage Auto-Mounted.\n", 0xFF00FF00);
+        GlobalRenderer->Print("FAT32 Mounted.\n", 0xFF00FF00);
     } else {
-        // Fallback for emulators/raw images without MBR
-        if (AHCI::GlobalAHCIDriver && AHCI::GlobalAHCIDriver->portCount > 0) {
-            globalFat32Driver = new FAT32::Driver(DiskReadWrapper, 0);
-            GlobalRenderer->Print("FAT32 Mounted (Superfloppy / Raw).\n", 0xFFFFFF00);
-        }
+        GlobalRenderer->Print("No FAT32 found.\n", 0xFFFFFF00);
     }
+
+    GlobalRenderer->Print("SYSCALLS DISABLED");
+    // InitializeSyscalls();
+    // GlobalRenderer->Print("Done.\n", 0xFF00FF00);
 
     GlobalRenderer->Print("Ready.\n");
 
-    // 3. Shell Loop
+    // } else {
+    //     // Fallback for emulators/raw images without MBR
+    //     if (AHCI::GlobalAHCIDriver && AHCI::GlobalAHCIDriver->portCount > 0) {
+    //         globalFat32Driver = new FAT32::Driver(DiskReadWrapper, 0);
+    //         GlobalRenderer->Print("FAT32 Mounted (Superfloppy / Raw).\n", 0xFFFFFF00);
+    //     }
+    // }
+
+    
+
+    String path = "/";
     while(1) { 
-        String input = prompt("adam@OS:/>");
+        String input = prompt(String("adam@OS:") + path + "> ");
+        
+        
         
         if (input.size() == 0) continue;
         
@@ -268,7 +338,10 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
         }
         else if (input == "help") {
             GlobalRenderer->Print("Available commands: clear, time, fs, ls, run, read, help\n");
-        } 
+        } else if (input == "cd") {
+            String x = prompt("DIR > ");
+            path = x;
+        }
         else {
             GlobalRenderer->Print("Unknown command: ");
             GlobalRenderer->Print(input);
