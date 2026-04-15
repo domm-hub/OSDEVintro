@@ -10,21 +10,21 @@ bool LShift = false;
 bool RShift = false;
 bool isExtended = false;
 bool AcceptInput = true;
-bool isPrompting = false; // Flag to indicate if we are waiting for input
 volatile bool EnterPressed = false;
+volatile bool isPrompting = false;
 
 String prompt(String prmpt) {
     if (!GlobalRenderer) return String();
 
-    // Reset state explicitly for EVERY prompt call
     EnterPressed = false; 
     isPrompting = true;
     
     GlobalRenderer->Print(prmpt.c_str());
+    // Store where the user's input starts in the buffer
     GlobalRenderer->PromptSize = GlobalRenderer->BufferSize;
     
     while (!EnterPressed) {
-        __asm__ volatile ("hlt");
+
     }
     
     isPrompting = false;
@@ -33,15 +33,73 @@ String prompt(String prmpt) {
     uint_32 end = GlobalRenderer->BufferSize;
     
     String input = String();
+    // Optimization: Ensure we don't overflow or read garbage
     for (uint_32 i = start; i < end; i++) {
-        input.add(GlobalRenderer->TextBuffer[i]);
+        char c = GlobalRenderer->TextBuffer[i];
+        if (c != 0) input.add(c);
     }
     
-    GlobalRenderer->NextLine(); 
-    
+    GlobalRenderer->NextLine();
     return input;
 }
 
+void vm(uint_16 incx, uint_16 incy){
+        uint_32 oldX = GlobalRenderer->CursorPosition.X;
+        uint_32 oldY = GlobalRenderer->CursorPosition.Y;
+
+        // Update the position
+        GlobalRenderer->CursorPosition.X += incx;
+        // GlobalRenderer->CursorPosition.Y += incy;
+
+        // Call the function with the correct arguments
+        GlobalRenderer->ChangeVisualCursorPosition(oldX, oldY, GlobalRenderer->CursorPosition.X, GlobalRenderer->CursorPosition.Y);
+}
+
+void KBArrows(uint_8 scancode){
+    /*
+        Scancodes (Set 1 Extended):
+            Left Arrow:
+                Press:   E0 4B
+                Release: E0 CB
+            Right Arrow:
+                Press:   E0 4D
+                Release: E0 CD
+            Up Arrow:
+                Press:   E0 48
+                Release: E0 C8
+            Down Arrow:
+                Press:   E0 50
+                Release: E0 D0
+                
+            Home:
+                Press:   E0 47
+                Release: E0 C7
+            End:
+                Press:   E0 4F
+                Release: E0 CF
+            Page Up:
+                Press:   E0 49
+                Release: E0 C9
+            Page Down:
+                Press:   E0 51
+                Release: E0 D1
+            Delete:
+                Press:   E0 53
+                Release: E0 D3
+            Insert:
+                Press:   E0 52
+                Release: E0 D2
+    */
+
+    switch (scancode){
+        case 0x4B:
+            vm(1, 0);
+            break;
+        case 0x4D:
+            vm(-1, 0);
+            break;
+    }
+}
 
 void KeyboardHandler(uint_8 scanCode, uint_8 chr) {
     if (!AcceptInput) return;
@@ -54,7 +112,7 @@ void KeyboardHandler(uint_8 scanCode, uint_8 chr) {
     // Handle Extended Keys
     if (isExtended) {
         isExtended = false;
-        // Skipping arrow key logic for now to keep the shell simple
+        KBArrows(scanCode);
         return;
     }
     isExtended = false; // Reset if it was set but not handled

@@ -9,3 +9,4 @@ __attribute__((no_caller_saved_registers))
 void KeyboardHandler(uint_8 scanCode, uint_8 chr);
 
 String prompt(String prmpt);
+void vm(uint_16 incx, uint_16 incy);

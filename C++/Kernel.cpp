@@ -136,7 +136,7 @@ char* simple_split(char* str, char delim) {
 
 // --- Kernel Main ---
 
-extern "C" void kernel_main(BootInfo* bootInfo) {
+void Init(BootInfo* bootInfo){
     if (bootInfo == nullptr || bootInfo->fb == nullptr) {
         while(1) __asm__("hlt");
     }
@@ -157,7 +157,7 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
 
     GlobalRenderer = new BasicRenderer(&kernel_fb, &kernel_font);
     GlobalRenderer->Clear(0x00111111); 
-    GlobalRenderer->Print("SYSTEM 15 Kernel Booting...\n", 0xFF00FF00);
+    GlobalRenderer->Print("\nSYSTEM 15 Kernel Booting...\n", 0xFF00FF00);
 
     // 2. Extended Hardware Initialization
     GlobalRenderer->Print("Initializing IDT... ");
@@ -172,7 +172,7 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
     PIT::SetFrequency(100);
 
     GlobalRenderer->Print("Initializing AHCI... ");
-    AHCI::Init();
+    // AHCI::Init();
     GlobalRenderer->Print("Done.\n", 0xFF00FF00);
 
     activate_sse();
@@ -190,7 +190,7 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
         GlobalRenderer->Print("No FAT32 found.\n", 0xFFFFFF00);
     }
 
-    GlobalRenderer->Print("SYSCALLS DISABLED");
+    GlobalRenderer->Print("SYSCALLS DISABLED... \n");
     // InitializeSyscalls();
     // GlobalRenderer->Print("Done.\n", 0xFF00FF00);
 
@@ -203,16 +203,39 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
     //         GlobalRenderer->Print("FAT32 Mounted (Superfloppy / Raw).\n", 0xFFFFFF00);
     //     }
     // }
+}
 
+String path = "/";
+
+int split_string(char* input, char delimiter, char** tokens, int max_tokens) {
+    if (!input || max_tokens <= 0) return 0;
+
+    int count = 0;
+    char* ptr = input;
     
+    // The first token starts at the beginning of the string
+    tokens[count++] = ptr;
 
-    String path = "/";
-    while(1) { 
-        String input = prompt(String("adam@OS:") + path + "> ");
-        
-        
-        
-        if (input.size() == 0) continue;
+    while (*ptr != '\0') {
+        if (*ptr == delimiter) {
+            // Null-terminate the current token
+            *ptr = '\0';
+            
+            // The next token starts after this delimiter
+            if (count < max_tokens) {
+                tokens[count++] = ptr + 1;
+            } else {
+                break; // Reached max token limit
+            }
+        }
+        ptr++;
+    }
+
+    return count;
+}
+
+void InputMan(String input){
+        if (input.size() == 0) return;
         
         if (input == "clear") {
             GlobalRenderer->Clear(GlobalRenderer->ClearColor);
@@ -268,7 +291,7 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
         else if (input == "read") {
             if (!globalFat32Driver) {
                 GlobalRenderer->Print("Error: File system not mounted.\n");
-                continue;
+                return;
             }
             
             String filename = prompt("Enter filename: ");
@@ -305,7 +328,7 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
         else if (input == "run") {
             if (!globalFat32Driver) {
                 GlobalRenderer->Print("Error: File system not mounted.\n");
-                continue;
+                return;
             }
             
             String filename = prompt("Enter executable: ");
@@ -348,4 +371,13 @@ extern "C" void kernel_main(BootInfo* bootInfo) {
             GlobalRenderer->Print("\n");
         }
     }
+
+extern "C" void kernel_main(BootInfo* bootInfo) {
+    Init(bootInfo);
+    while(1) { 
+        GlobalRenderer->Print(">");
+        String input = prompt(String("adam@OS:") + path + "> ");
+        InputMan(input);
+    }
+
 }

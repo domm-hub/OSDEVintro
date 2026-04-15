@@ -3,24 +3,9 @@
 #include "TypeDefs.h"
 #include "TextModeColorCodes.h"
 
-extern uint_16 CursorPosition;
 extern char HexToStringOutput[128];
 extern char IntegerToStringOutput[128];
 extern char FloatToStringOutput[128];
-
-#define VGA_MEMORY (uint_8*)0xb8000
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
-
-void SetCursorPosition(uint_16 position);
-
-uint_16 PositionFromCoords(uint_8 x, uint_8 y);
-
-void PrintString(const char* str, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE);
-
-void PrintChar(char chr, uint_8 color = BACKGROUND_BLACK | FOREGROUND_WHITE);
-
-void clearScreen(uint_64 clearclr = BACKGROUND_BLACK | FOREGROUND_WHITE);
 
 template<typename T>
 const char* HexToString(T value){
