@@ -7,6 +7,7 @@ BINF = bin/obj/
 # Directories
 SRC_DIR = ../C++
 LIB_DIR = $(SRC_DIR)/libs
+DRV_DIR = $(LIB_DIR)/drivers
 
 # Targets
 EFI_TARGET = bootx64.efi
@@ -41,40 +42,88 @@ all: $(EFI_TARGET) $(KERNEL_BIN) $(USER_BIN)
 
 # 1. UEFI Bootloader
 $(BINF)bootloader.o: bootloader.c
+	mkdir -p $(BINF)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EFI_TARGET): $(BINF)bootloader.o
 	$(LD) $(LDFLAGS) $< -out:$@
 
-# 2. Pattern Rules for Kernel (Cleans up your file significantly)
-$(BINF)%.o: $(LIB_DIR)/drivers/%.cpp
-	$(CXX) $(if $(filter Framebuffer.o BasicRenderer.o IO.o Keyboard.o PIT.o, $@), $(ISR_FLAGS), $(CXXFLAGS)) -c $< -o $@
-
-$(BINF)%.o: $(LIB_DIR)/Memory/%.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
+# 2. Kernel Core & Drivers (Updated for New Structure)
 $(BINF)Kernel.o: $(SRC_DIR)/Kernel.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(BINF)IDT.o: $(LIB_DIR)/IDT.cpp
+$(BINF)str.o: $(LIB_DIR)/data/str.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Graphics
+$(BINF)Framebuffer.o: $(DRV_DIR)/Graphics/Framebuffer.cpp
 	$(CXX) $(ISR_FLAGS) -c $< -o $@
 
-# 3. Assembly Files
-$(BINF)%.o: $(LIB_DIR)/%.S
+$(BINF)BasicRenderer.o: $(DRV_DIR)/Graphics/BasicRenderer.cpp
+	$(CXX) $(ISR_FLAGS) -c $< -o $@
+
+# COM / Basic
+$(BINF)IO.o: $(DRV_DIR)/COM/Basic/IO.cpp
+	$(CXX) $(ISR_FLAGS) -c $< -o $@
+
+$(BINF)PCI.o: $(DRV_DIR)/COM/PCI.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BINF)AHCI.o: $(DRV_DIR)/COM/AHCI.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BINF)fat32.o: $(DRV_DIR)/COM/fat32.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# IDT
+$(BINF)IDT.o: $(DRV_DIR)/IDT/IDT.cpp
+	$(CXX) $(ISR_FLAGS) -c $< -o $@
+
+$(BINF)Keyboard.o: $(DRV_DIR)/IDT/Keyboard.cpp
+	$(CXX) $(ISR_FLAGS) -c $< -o $@
+
+$(BINF)PIT.o: $(DRV_DIR)/IDT/PIT.cpp
+	$(CXX) $(ISR_FLAGS) -c $< -o $@
+
+# Misc Drivers
+$(BINF)TextPrint.o: $(DRV_DIR)/TextPrint.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# Memory & GDT
+$(BINF)GDT.o: $(LIB_DIR)/Memory/GDT.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BINF)Heap.o: $(LIB_DIR)/Memory/Heap/Heap.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BINF)Memory.o: $(LIB_DIR)/Memory/Heap/Memory.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BINF)MemoryMap.o: $(LIB_DIR)/Memory/Heap/MemoryMap.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+# 3. Assembly Files (Updated for New Structure)
+$(BINF)entry.o: $(LIB_DIR)/entry.S
 	$(CC) -target x86_64-unknown-none -c $< -o $@
 
 $(BINF)gdt_wrapper.o: $(LIB_DIR)/Memory/gdt_wrapper.S
 	$(CC) -target x86_64-unknown-none -c $< -o $@
 
+$(BINF)userspace.o: $(DRV_DIR)/User/userspace.S
+	$(CC) -target x86_64-unknown-none -c $< -o $@
+
+$(BINF)setjmp.o: $(DRV_DIR)/User/setjmp.S
+	$(CC) -target x86_64-unknown-none -c $< -o $@
+
+$(BINF)Syscalls.o: $(DRV_DIR)/User/Syscalls.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
 $(BINF)font.o: font_wrapper.S font.psf
 	$(CC) -target x86_64-unknown-none -c $< -o $@
 
-$(BINF)str.o: $(LIB_DIR)/data/str.cpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
 # 4. Linking
 $(KERNEL_BIN): $(OBJS)
-	$(LD) -flavor gnu -T ../link.ld -o $@ $(OBJS)
+	$(LD) -flavor gnu -T ../Conf/link.ld -o $@ $(OBJS)
 
 $(USER_BIN): $(BINF)user_program.o
 	$(LD) -flavor gnu --section-start .text=0x0 --oformat binary -o $@ $<
@@ -90,12 +139,12 @@ deploy: all
 	cp $(USER_BIN) esp/user_program.bin
 	printf "\\\EFI\\\BOOT\\\BOOTX64.EFI\r\n" > esp/startup.nsh
 
-run: deploy $(FS_IMG)
+run: deploy
 	qemu-system-x86_64 -drive if=pflash,format=raw,readonly=on,file=OVMF/OVMF_CODE-pure-efi.fd \
 		-drive if=pflash,format=raw,file=OVMF/OVMF_VARS-pure-efi.fd \
 		-drive format=raw,file=fat:rw:esp -m 256M -net none
 
 clean:
-	rm -rf $(BINF) *.o $(EFI_TARGET) $(KERNEL_BIN) $(USER_BIN) esp/ $(FS_IMG)
+	rm -rf $(BINF) *.o $(EFI_TARGET) $(KERNEL_BIN) $(USER_BIN) esp/
 
 .PHONY: all deploy run clean

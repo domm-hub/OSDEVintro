@@ -10,3 +10,4 @@ bin/
 temp/
 *.o
 *.efi
+Backups/

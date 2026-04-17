@@ -1,14 +1,32 @@
 {
-    "C_Cpp.vcpkg.enabled": false,
-    "C_Cpp.debugShortcut": false,
-    "C_Cpp.suggestSnippets": false,
-    "debug.toolBarLocation": "hidden",
-    "code-runner.executorMap": {
-        "cpp": "cd $workspaceRoot && chmod +x ./scripts/run && zsh -l -c './scripts/run' "
+    "material-icon-theme.folders.associations": {
+        "EFI": "linux",
+        "headers": "include",
+        "drivers": "controller",
+        "Heap": "container",
+        "Graphics": "images",
+        "IDT": "constant",
+        "COM": "plugin",
+        "Conf": "config",
+        "OVMF": "secure"
     },
-    "pylsp.executable": "/Library/Frameworks/Python.framework/Versions/3.15/bin/pylsp",
-    "[xonsh]": {
-        "editor.defaultFormatter": "ms-python.python",
-        "editor.formatOnSave": true
+    "material-icon-theme.files.associations": {
+        "*.h_diff.temp": "diff",
+        "*.ld": "tune",
+        "*.S": "assembly",
+        "*.psf": "font",
+        "*.fd": "disk",
+        "*.xsh": "console",
+        "logo.txt": "image",
+    },
+    
+    "files.exclude": {
+            "**/.git": true,
+            "**/.vscode": true,
+            "**/README.md": true,
+            "**/GEMINI.md": true,
+            "**/.gitignore": true,
+            ".xonshrc": true
     }
+    
 }

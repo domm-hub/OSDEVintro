@@ -182,8 +182,8 @@ void Init(BootInfo* bootInfo){
     GlobalRenderer->Print("Done.\n", 0xFF00FF00);
 
     // 2. Storage Initialization
-    GlobalRenderer->Print("Initializing FS");
-    globalFat32Driver = InitStorage();
+    GlobalRenderer->Print("Initializing FS... ");
+    // globalFat32Driver = InitStorage();
     if (globalFat32Driver) {
         GlobalRenderer->Print("FAT32 Mounted.\n", 0xFF00FF00);
     } else {
@@ -196,13 +196,6 @@ void Init(BootInfo* bootInfo){
 
     GlobalRenderer->Print("Ready.\n");
 
-    // } else {
-    //     // Fallback for emulators/raw images without MBR
-    //     if (AHCI::GlobalAHCIDriver && AHCI::GlobalAHCIDriver->portCount > 0) {
-    //         globalFat32Driver = new FAT32::Driver(DiskReadWrapper, 0);
-    //         GlobalRenderer->Print("FAT32 Mounted (Superfloppy / Raw).\n", 0xFFFFFF00);
-    //     }
-    // }
 }
 
 String path = "/";
