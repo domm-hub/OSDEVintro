@@ -13,6 +13,7 @@
 
 #define PIC_EOI        0x20
 
+
 void outb(uint_16 port, uint_8 val);
 uint_8 inb(uint_16 port);
 void outl(uint_16 port, uint_32 val);
@@ -20,6 +21,7 @@ uint_32 inl(uint_16 port);
 
 void wrmsr(uint_32 msr, uint_64 value);
 uint_64 rdmsr(uint_32 msr);
+
 
 void activate_sse();
 void RemapPic();
