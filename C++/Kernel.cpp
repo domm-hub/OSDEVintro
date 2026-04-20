@@ -20,12 +20,32 @@ extern "C" char _binary_font_psf_start;
 extern "C" char _binary_font_psf_end;
 
 extern "C" void JumpToUser(uint_64 rip, uint_64 rsp);
+extern "C" uint_64 KernelStackPtr;
 
 extern "C" int __cxa_atexit(void (*func)(void*), void* arg, void* dso_handle) { return 0; }
 void* __dso_handle = (void*)0;
 
-// --- Global Paging State ---
-Paging::PageTableManager* GlobalPageTableManager = nullptr;
+uint_64 RunningProcesses = 0;
+
+// --- Storage Globals ---
+FAT32::Driver* globalFat32Driver = nullptr;
+uint32_t currentDirCluster = 2; 
+String* currentPath = nullptr; 
+
+// External function from str.cpp
+Vector<String> split(String text, char delimiter);
+
+String ReadDiskHelper(FAT32::File file) {
+    if (!globalFat32Driver) return String("");
+    
+    uint8_t* volatile buffer = globalFat32Driver->ReadFile(file);
+    if (buffer == nullptr) return String("");
+
+    String result((const char*)buffer); 
+    free((void*)buffer); 
+
+    return result;
+}
 
 // --- C++ Memory Operators ---
 void* operator new(unsigned long size) { 
@@ -46,6 +66,9 @@ void operator delete[](void* p, unsigned long size) { free(p); }
 static Framebuffer kernel_fb;
 static PSF1_Font kernel_font;
 
+// --- Global Paging State ---
+Paging::PageTableManager* GlobalPageTableManager = nullptr;
+
 // --- Storage Infrastructure ---
 
 bool DiskReadWrapper(uint64_t lba, uint32_t count, void* buffer) {
@@ -56,10 +79,6 @@ bool DiskReadWrapper(uint64_t lba, uint32_t count, void* buffer) {
     }
     return false;
 }
-
-FAT32::Driver* globalFat32Driver = nullptr;
-uint32_t currentDirCluster = 2; 
-String* currentPath = nullptr; 
 
 FAT32::Driver* InitStorage() {
     if (!AHCI::GlobalAHCIDriver || AHCI::GlobalAHCIDriver->portCount == 0) return nullptr;
@@ -118,12 +137,10 @@ void Init(BootInfo* bootInfo){
     memset(pml4, 0, 4096);
     GlobalPageTableManager = new Paging::PageTableManager(pml4);
 
-    // Identity map the first 4GB of memory - Supervisor only by default
     for (uint_64 i = 0; i < 0x100000000; i += 4096) {
         GlobalPageTableManager->MapMemory((void*)i, (void*)i, false);
     }
 
-    // Identity map the Framebuffer
     uint_64 fbSize = (uint_64)bootInfo->fb->BufferSize;
     uint_64 fbBase = (uint_64)bootInfo->fb->BaseAddress;
     GlobalAllocator.ReservePages((void*)fbBase, fbSize / 4096 + 1);
@@ -131,7 +148,6 @@ void Init(BootInfo* bootInfo){
         GlobalPageTableManager->MapMemory((void*)i, (void*)i, false);
     }
 
-    // Activate Paging
     LoadCR3((uint_64)pml4);
 
     InitializeHeap(0x4000000, 0x1000000); 
@@ -158,6 +174,8 @@ void Init(BootInfo* bootInfo){
     MainKeyboardHandler = KeyboardHandler;
     PIT::SetFrequency(100);
 
+    __asm__ volatile ("mov %%rsp, %0" : "=m"(KernelStackPtr));
+
     InitializeSyscalls();
     AHCI::Init();
 
@@ -168,77 +186,222 @@ void Init(BootInfo* bootInfo){
 }
 
 void InputMan(String input){
+    input.Trim();
     if (input.size() == 0) return;
     
-    if (input == "clear") {
+    Vector<String> parts = split(input, ' ');
+    String cmd = parts[0];
+    cmd.ToUpper();
+
+    if (cmd == "CLEAR") {
         GlobalRenderer->Clear(GlobalRenderer->ClearColor);
     } 
-    else if (input == "ls") {
-        if (!globalFat32Driver) return;
-        Vector<FAT32::File> files = globalFat32Driver->ListDirectory(currentDirCluster);
-        for (int i = 0; i < files.size(); i++) {
-            GlobalRenderer->Print(files[i].Name.c_str());
-            if (files[i].IsDirectory) GlobalRenderer->Print(" [DIR]\n");
+    else if (cmd == "LS") {
+        if (!globalFat32Driver) {
+            GlobalRenderer->Print("FS not mounted.\n");
+            return;
+        }
+        
+        uint32_t targetCluster = currentDirCluster;
+        if (parts.size() > 1) {
+            String dirname = parts[1];
+            dirname.ToUpper();
+            
+            if (dirname == ".") targetCluster = currentDirCluster;
             else {
-                GlobalRenderer->Print(" (");
-                GlobalRenderer->Print(IntegerToString(files[i].Size));
-                GlobalRenderer->Print(" bytes)\n");
+                Vector<FAT32::File> files = globalFat32Driver->ListDirectory(currentDirCluster);
+                bool found = false;
+                for (int i = 0; i < files.size(); i++) {
+                    String entryName = files[i].Name;
+                    entryName.ToUpper();
+                    if (entryName == dirname && files[i].IsDirectory) {
+                        targetCluster = files[i].FirstCluster;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    GlobalRenderer->Print("Directory not found: ");
+                    GlobalRenderer->Print(dirname.c_str());
+                    GlobalRenderer->Print("\n");
+                    return;
+                }
+            }
+        }
+
+        Vector<FAT32::File> files = globalFat32Driver->ListDirectory(targetCluster);
+        if (files.size() == 0) {
+            GlobalRenderer->Print("[Empty Directory]\n");
+        } else {
+            for (int i = 0; i < files.size(); i++) {
+                GlobalRenderer->Print(files[i].Name.c_str());
+                if (files[i].IsDirectory) {
+                    GlobalRenderer->Print(" [DIR]\n");
+                } else {
+                    GlobalRenderer->Print(" (");
+                    GlobalRenderer->Print(IntegerToString(files[i].Size));
+                    GlobalRenderer->Print(" bytes)\n");
+                }
             }
         }
     }
-    else if (input == "cd") {
+    else if (cmd == "CD") {
         if (!globalFat32Driver) return;
-        String dirname = prompt("Dir > ");
-        if (dirname == "..") {
+        
+        String dirname;
+        if (parts.size() > 1) {
+            dirname = parts[1];
+        } else {
+            dirname = prompt("Dir > ");
+        }
+        dirname.Trim();
+        dirname.ToUpper();
+
+        if (dirname == "/") {
             currentDirCluster = 2;
             *currentPath = "/";
             return;
         }
-        Vector<FAT32::File> files = globalFat32Driver->ListDirectory(currentDirCluster);
-        for (int i = 0; i < files.size(); i++) {
-            if (files[i].Name == dirname && files[i].IsDirectory) {
-                currentDirCluster = files[i].FirstCluster;
-                if (*currentPath == "/") *currentPath = "/" + files[i].Name;
-                else *currentPath = *currentPath + "/" + files[i].Name;
-                return;
-            }
-        }
-    }
-    else if (input == "run") {
-        if (!globalFat32Driver) return;
-        String filename = prompt("Executable > ");
-        Vector<FAT32::File> files = globalFat32Driver->ListDirectory(currentDirCluster);
-        for (int i = 0; i < files.size(); i++) {
-            if (files[i].Name == filename && !files[i].IsDirectory) {
-                uint8_t* data = globalFat32Driver->ReadFile(files[i]);
-                if (data) {
-                    // Map code and stack as user-accessible and flush TLB
-                    GlobalPageTableManager->IdentityMap(data, files[i].Size, true);
-                    
-                    void* userStack = malloc(16384);
-                    uint_64 userRsp = (uint_64)userStack + 16384;
-                    GlobalPageTableManager->IdentityMap(userStack, 16384, true);
 
-                    GlobalRenderer->Print("Jumping to Ring 3...\n");
-                    
-                    if (setjmp(shell_context) == 0) {
-                        JumpToUser((uint_64)data, userRsp);
-                    } else {
-                        GlobalRenderer->Print("\nReturned from user program.\n");
+        Vector<FAT32::File> files = globalFat32Driver->ListDirectory(currentDirCluster);
+        for (int i = 0; i < files.size(); i++) {
+            String entryName = files[i].Name;
+            entryName.ToUpper();
+            if (entryName == dirname && files[i].IsDirectory) {
+                currentDirCluster = files[i].FirstCluster;
+                
+                if (dirname == "..") {
+                    // Update path string (find last / and cut)
+                    if (*currentPath != "/") {
+                        int lastSlash = -1;
+                        for (int j = 0; j < (int)currentPath->length(); j++) {
+                            if ((*currentPath)[j] == '/') lastSlash = j;
+                        }
+                        if (lastSlash == 0) *currentPath = "/";
+                        else {
+                            // Cut string at lastSlash
+                            String newPath = "";
+                            for (int j = 0; j < lastSlash; j++) newPath.add((*currentPath)[j]);
+                            *currentPath = newPath;
+                        }
                     }
-                    
-                    GlobalPageTableManager->IdentityMap(userStack, 16384, false);
-                    free(userStack);
-                    free(data);
+                } else if (dirname != ".") {
+                    if (*currentPath == "/") *currentPath = "/" + files[i].Name;
+                    else *currentPath = *currentPath + "/" + files[i].Name;
                 }
                 return;
             }
         }
-        GlobalRenderer->Print("Executable not found.\n");
+        GlobalRenderer->Print("Directory not found.\n");
     }
-    else if (input == "help") {
-        GlobalRenderer->Print("Available commands: clear, ls, cd, cat, run, help\n");
+    else if (cmd == "RUN") {
+        if (!globalFat32Driver) return;
+        
+        String filename;
+        if (parts.size() > 1) {
+            filename = parts[1];
+        } else {
+            filename = prompt("Executable > ");
+        }
+        filename.Trim();
+        filename.ToUpper();
+
+        Vector<FAT32::File> files = globalFat32Driver->ListDirectory(currentDirCluster);
+        for (int i = 0; i < files.size(); i++) {
+            String entryName = files[i].Name;
+            entryName.ToUpper();
+
+            if (entryName == filename && !files[i].IsDirectory) {
+                uint8_t* data = globalFat32Driver->ReadFile(files[i]);
+                if (data) {
+                    uint_64 progVirtAddr = 0x800000;
+                    uint_64 pageCount = (files[i].Size + 4095) / 4096;
+                    for (uint_64 p = 0; p < pageCount; p++) {
+                        GlobalPageTableManager->MapMemory(
+                            (void*)(progVirtAddr + (p * 4096)), 
+                            (void*)((uint_64)data + (p * 4096)), 
+                            true
+                        );
+                    }
+                    
+                    void* volatile userStackPhys = aligned_alloc(4096, 16384);
+                    uint_64 stackVirtAddr = 0x900000;
+                    for (uint_64 p = 0; p < 5; p++) {
+                        GlobalPageTableManager->MapMemory(
+                            (void*)(stackVirtAddr + (p * 4096)),
+                            (void*)((uint_64)userStackPhys + (p * 4096)),
+                            true
+                        );
+                    }
+                    uint_64 userRsp = stackVirtAddr + 16384 - 8;
+
+                    uint_64 cr3;
+                    __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
+                    __asm__ volatile("mov %0, %%cr3" : : "r"(cr3));
+
+                    GlobalRenderer->Print("Jumping to Ring 3...\n");
+                    __asm__ volatile ("mov %%rsp, %0" : "=m"(KernelStackPtr));
+                    KernelStackPtr -= 128;
+
+                    if (setjmp(shell_context) == 0) {
+                        JumpToUser(progVirtAddr, userRsp);
+                    } else {
+                        __asm__ volatile ("sti");
+                        GlobalRenderer->Print("\nReturned from user program.\n");
+                    }
+                    
+                    free((void*)userStackPhys);
+                    free((void*)data);
+                }
+                return;
+            }
+        }
+        GlobalRenderer->Print("File not found: [");
+        GlobalRenderer->Print(filename.c_str());
+        GlobalRenderer->Print("]\n");
     } 
+    else if (cmd == "CAT") {
+        if (!globalFat32Driver) return;
+        
+        String filename;
+        if (parts.size() > 1) {
+            filename = parts[1];
+        } else {
+            filename = prompt("File > ");
+        }
+        filename.Trim();
+        filename.ToUpper();
+
+        Vector<FAT32::File> files = globalFat32Driver->ListDirectory(currentDirCluster);
+        bool found = false;
+        for (int i = 0; i < files.size(); i++) {
+            String entryName = files[i].Name;
+            entryName.ToUpper();
+
+            if (entryName == filename && !files[i].IsDirectory) {
+                String content = ReadDiskHelper(files[i]);
+                if (content.size() > 0) {
+                    GlobalRenderer->Print(content.c_str());
+                    GlobalRenderer->Print("\n");
+                } else {
+                    GlobalRenderer->Print("[File is empty]\n");
+                }
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            GlobalRenderer->Print("Error: File not found.\n");
+        }
+    }
+    else if (cmd == "HELP") {
+        GlobalRenderer->Print("Available commands: clear, ls [dir], cd <dir>, cat <file>, run <exe>, help\n");
+    } 
+    else {
+        GlobalRenderer->Print("Unknown command: ");
+        GlobalRenderer->Print(cmd.c_str());
+        GlobalRenderer->Print("\n");
+    }
 }
 
 extern "C" void kernel_main(BootInfo* bootInfo) {

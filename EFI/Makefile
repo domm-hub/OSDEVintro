@@ -132,22 +132,17 @@ $(KERNEL_BIN): $(OBJS)
 	$(LD) -flavor gnu -T ../Conf/link.ld -o $@ $(OBJS)
 
 $(USER_BIN): $(BINF)user_program.o
-	$(LD) -flavor gnu --section-start .text=0x0 --oformat binary -o $@ $<
+	$(LD) -flavor gnu -T ../C++/user.ld -o $@ $<
 
 $(BINF)user_program.o: $(SRC_DIR)/user_program.cpp
 	mkdir -p $(BINF)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # --- Filesystem Image Generation ---
-# --- Filesystem Image Generation (Finder Compatible) ---
 $(FS_IMG):
-	@echo "Creating 64MB FAT32 disk image for Finder..."
-	# Use hdiutil to create a layout macOS understands (MBR partition map)
-	hdiutil create -size 64m -fs "MS-DOS FAT32" -volname "MY_OS_DISK" -layout MBRSPUD $(FS_IMG).dmg
-	# Rename to your expected filename
-	mv $(FS_IMG).dmg $(FS_IMG)
-	
-	# Use mtools via LIMA to add your files and folders
+	@echo "Creating 64MB FAT32 disk image..."
+	dd if=/dev/zero of=$(FS_IMG) bs=1M count=64
+	$(LIMA) mkfs.fat -F 32 $(FS_IMG)
 	@echo "Hello from Text1!" > Text1.txt
 	$(LIMA) mmd -i $(FS_IMG) ::/my_folder
 	$(LIMA) mcopy -i $(FS_IMG) Text1.txt ::/my_folder/
