@@ -1,0 +1,16 @@
+Findings on Ring 3 Transition Hang:
+
+1. Syscall Number Overwritten: In 'userspace.S', 'SyscallHandlerEntry' overwrites RAX with RSP before saving it. This causes the syscall number to be lost and replaced by the user stack pointer, leading 'SyscallDispatcher' to ignore all requests (including exit and print).
+
+2. Stack Out-of-Bounds: 'userRsp' is set to 0x904000, but only memory up to 0x903FFF is mapped in 'Kernel.cpp'. When '_start' returns, the 'ret' instruction attempts to pop from 0x904000, triggering a Page Fault.
+
+3. Register Clobbering: The 'syscall' instruction in 'IO.cpp' does not list RCX and R11 in the clobber list. These registers are used by the CPU to save RIP and RFLAGS and will be destroyed upon return to user mode.
+
+4. GDT/STAR Consistency: The GDT order (UserCode32, UserData, UserCode64) is technically compatible with 'sysretq' requirements if STAR[63:48] is 0x1B, but the manual jump in 'JumpToUser' must strictly use 0x2B (CS) and 0x23 (SS).
+
+5. Kernel Stack Reset: 'SyscallHandlerEntry' resets RSP to 'KernelStackPtr' on every call. This is functional for a single-tasking environment but will overwrite any nested state if interrupts are re-enabled.
+
+Recommendation:
+- Fix 'SyscallHandlerEntry' to preserve RAX (e.g., push it to the stack before overwriting).
+- Map the page at 0x904000 or set 'userRsp' to 0x903FF8 to avoid the immediate Page Fault on return.
+- Add RCX and R11 to the clobber lists in 'IO.cpp'.

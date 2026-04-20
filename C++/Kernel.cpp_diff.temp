@@ -1,0 +1,86 @@
+#include "BootInfo.h"
+#include "BasicRenderer.h"
+#include "IDT.h"
+#include "GDT.h"
+#include "Keyboard.h"
+#include "IO.h"
+#include "Heap.h"
+#include "PIT.h"
+#include "str.h"
+#include "fat32.h"
+#include "Vector.h"
+#include "AHCI.h"
+#include "MBR.h"
+#include "Syscalls.h"
+#include "Memory.h"
+
+extern "C" char _binary_font_psf_start;
+extern "C" char _binary_font_psf_end;
+
+extern "C" void JumpToUser(uint_64 rip, uint_64 rsp);
+
+extern "C" int __cxa_atexit(void (*func)(void*), void* arg, void* dso_handle) { return 0; }
+void* __dso_handle = (void*)0;
+
+// Standard Memory Operators
+void* operator new(unsigned long size) { 
+    void* ptr = malloc(size);
+    if (ptr) memset(ptr, 0, size);
+    return ptr; 
+}
+void* operator new[](unsigned long size) { 
+    void* ptr = malloc(size);
+    if (ptr) memset(ptr, 0, size);
+    return ptr; 
+}
+void operator delete(void* p) { free(p); }
+void operator delete(void* p, unsigned long size) { free(p); }
+void operator delete[](void* p) { free(p); }
+void operator delete[](void* p, unsigned long size) { free(p); }
+
+static Framebuffer kernel_fb;
+static PSF1_Font kernel_font;
+
+void Init(BootInfo* bootInfo){
+    InitializeGDT();
+    InitializeHeap(0x4000000, 0x1000000); 
+
+    kernel_fb = *(bootInfo->fb);
+    if (bootInfo->font && bootInfo->font->header) {
+        kernel_font = *(bootInfo->font);
+    } else {
+        PSF1_Header* fontHeader = (PSF1_Header*)&_binary_font_psf_start;
+        kernel_font.header = fontHeader;
+        kernel_font.glyphBuffer = (void*)((uint_64)fontHeader + sizeof(PSF1_Header));
+    }
+
+    GlobalRenderer = new BasicRenderer(&kernel_fb, &kernel_font);
+    GlobalRenderer->Clear(0x00111111); 
+    GlobalRenderer->Print("\nSYSTEM 15 Kernel Booting...\n", 0xFF00FF00);
+
+    InitializeIDT();
+
+    uint_64 kernel_stack;
+    __asm__ volatile ("mov %%rsp, %0" : "=r"(kernel_stack));
+    GlobalTSS.rsp0 = kernel_stack;
+
+    MainKeyboardHandler = KeyboardHandler;
+    PIT::SetFrequency(100);
+
+    __asm__ volatile ("sti");
+}
+
+extern "C" void kernel_main(BootInfo* bootInfo) {
+    Init(bootInfo);
+
+    uint_64 lastBlink = 0;
+    while(1) { 
+        if (PIT::TimeSinceBootMS - lastBlink > 500) {
+            if (GlobalRenderer) GlobalRenderer->ToggleCursor();
+            lastBlink = PIT::TimeSinceBootMS;
+        }
+
+        String input = prompt(String("adam@OS:/> "));
+        // Input processing goes here
+    }
+}
