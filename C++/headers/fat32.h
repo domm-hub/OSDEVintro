@@ -79,6 +79,7 @@ namespace FAT32 {
             Vector<File> ListDirectory(uint32_t cluster);
             Vector<File> ListRootDirectory();
             uint8_t* ReadFile(File file);
+            uint32_t GetRootCluster() const;
     };
 
 

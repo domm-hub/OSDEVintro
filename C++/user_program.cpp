@@ -1,34 +1,25 @@
 #include "SysCalls/IO.cpp"
-#include "SysCalls/Heap.h"
 
 extern "C" __attribute__((section(".entry"))) void _start() {
-    exit(main());
-}
+    println("User Program Started.");
 
-int main(){
-    const char* msg = "Hello from Ring 3! I am a user program.\n";
-    
-    println(msg);
-    uint_8 items = 15;
-    uint_8* array = (uint_8*) malloc(items*sizeof(uint_8));
-    int i = 0; 
-    char* str = "Hello!\n";
-
-    while (str[i] != '\0'){
-        array[i] = str[i];
-        i++;
+    // Test sbrk
+    char* my_mem = (char*)sbrk(4096);
+    if (my_mem) {
+        my_mem[0] = 'H';
+        my_mem[1] = 'e';
+        my_mem[2] = 'y';
+        my_mem[3] = '!';
+        my_mem[4] = '\0';
+        
+        print("Dynamic Memory Allocated at: ");
+        printHex((unsigned long long)my_mem);
+        print("\n");
+        
+        println(my_mem);
+    } else {
+        println("SBRK Failed.");
     }
-    array[i] = '\0';
 
-    println(array);
-    newMem = (char*)realloc((void*)array, 30);
-    newMem = "1234567890 123456789 123456789";
-
-    println(newMem);
-    println("\nExcellent!\n");
-
-    println("Exiting...\n");
-    
-    return 0;
+    exit(0);
 }
-

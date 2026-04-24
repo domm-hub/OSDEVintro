@@ -63,7 +63,7 @@ extern "C" __attribute__((interrupt)) void isr14(void* frame, uint_64 errorCode)
     while(1);
 }
 
-void MakeIDTEntry(uint_64 handler, uint_16 index, uint_16 selector, uint_8 types_attr){
+bool MakeIDTEntry(uint_64 handler, uint_16 index, uint_16 selector, uint_8 types_attr){
     _idt[index].offset_low  =  (uint_16)((handler & 0xFFFF));
     _idt[index].selector    =  selector;
     _idt[index].ist         =  0;
@@ -71,6 +71,7 @@ void MakeIDTEntry(uint_64 handler, uint_16 index, uint_16 selector, uint_8 types
     _idt[index].offset_mid  =  (uint_16)((handler >> 16) & 0xFFFF);
     _idt[index].offset_high =  (uint_32)((handler >> 32) & 0xFFFFFFFF);
     _idt[index].reserved    =  0;
+    return true;
 }
 
 void DisableAPIC() {
@@ -80,24 +81,32 @@ void DisableAPIC() {
     __asm__ volatile("wrmsr" : : "a"(lo), "d"(hi), "c"(0x1B));
 }
 
+extern "C" void SchedulerInterruptStub();
+extern "C" void PIT_InterruptStub();
+extern "C" void MouseInterruptStub();
+
 void InitializeIDT(){
     DisableAPIC(); // Mandatory for UEFI/OVMF to stop rogue IRQs
     RemapPic();
-    
+
     outb(0x21, 0xFF);
     outb(0xA1, 0xFF);
 
-    uint_16 cs = 0x08; 
+    uint16_t cs = 0x08; 
 
-    MakeIDTEntry((uint_64)isr0, 32, cs, 0x8e);
+    MakeIDTEntry((uint_64)PIT_InterruptStub, 32, cs, 0x8e);
     MakeIDTEntry((uint_64)isr1, 33, cs, 0x8e);
+    MakeIDTEntry((uint_64)MouseInterruptStub, 44, cs, 0x8e); // IRQ 12 = 32 + 12 = 44
+    MakeIDTEntry((uint_64)SchedulerInterruptStub, 0x80, cs, 0x8e);
     MakeIDTEntry((uint_64)isr13, 13, cs, 0x8e);
     MakeIDTEntry((uint_64)isr14, 14, cs, 0x8e);
 
+    LoadIDT();
+
     while (inb(0x64) & 1) inb(0x60);
 
-    outb(0x21, 0xFC); 
-    LoadIDT();
+    outb(0x21, 0xF8); // Unmask IRQ 0 (PIT), 1 (Keyboard), 2 (Cascade to Slave)
+    outb(0xA1, 0xEF); // Unmask IRQ 12 (Mouse)
 }
 
 __attribute__((no_caller_saved_registers))

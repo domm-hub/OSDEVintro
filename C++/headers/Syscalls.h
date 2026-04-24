@@ -2,6 +2,14 @@
 #include "TypeDefs.h"
 #include "setjmp.h"
 
+#define SYS_EXIT   0
+#define SYS_PRINT  1
+#define SYS_INPUT  2
+#define SYS_SLEEP  3
+#define SYS_YIELD  4
+#define SYS_SBRK   5
+#define SYS_UPTIME 6
+
 void InitializeSyscalls();
 
 extern "C" void SyscallHandlerEntry();

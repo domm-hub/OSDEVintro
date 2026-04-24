@@ -137,6 +137,7 @@ void Init(BootInfo* bootInfo){
     __asm__ volatile ("sti");
 
     globalFat32Driver = InitStorage();
+    if (globalFat32Driver) currentDirCluster = globalFat32Driver->GetRootCluster();
     GlobalRenderer->Print("Ready.\n");
 }
 
@@ -178,7 +179,7 @@ void InputMan(String input){
         dirname.ToUpper();
 
         if (dirname == "..") {
-            currentDirCluster = 2;
+            currentDirCluster = globalFat32Driver->GetRootCluster();
             *currentPath = "/";
             return;
         }

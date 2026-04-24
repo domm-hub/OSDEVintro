@@ -37,13 +37,14 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
 
     // 1. Initialize Framebuffer
     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Locating GOP...\r\n");
-    static Framebuffer fb;
-    if (InitializeGOP(SystemTable, &fb) != EFI_SUCCESS) {
+    Framebuffer* fb;
+    SystemTable->BootServices->AllocatePool(EfiLoaderData, sizeof(Framebuffer), (void**)&fb);
+    if (InitializeGOP(SystemTable, fb) != EFI_SUCCESS) {
         SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Failed to locate GOP!\r\n");
         return EFI_DEVICE_ERROR;
     }
 
-    // 2. Open Kernel File
+    // ... (rest of the drive opening code) ...
     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Opening drive...\r\n");
     EFI_FILE_PROTOCOL *Root;
     if (GetRootHandle(ImageHandle, SystemTable, &Root) != EFI_SUCCESS) {
@@ -101,11 +102,12 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     SystemTable->BootServices->GetMemoryMap(&MapSize, pMap, &MapKey, &DescriptorSize, &DescriptorVersion);
 
     // 5. Prepare BootInfo
-    static BootInfo bootInfo;
-    bootInfo.fb = &fb;
-    bootInfo.memoryMap = (MemoryDescriptor*)pMap; // Cast to our neutral type
-    bootInfo.memoryMapSize = MapSize;
-    bootInfo.descriptorSize = DescriptorSize;
+    BootInfo* bootInfo;
+    SystemTable->BootServices->AllocatePool(EfiLoaderData, sizeof(BootInfo), (void**)&bootInfo);
+    bootInfo->fb = fb;
+    bootInfo->memoryMap = (MemoryDescriptor*)pMap; 
+    bootInfo->memoryMapSize = MapSize;
+    bootInfo->descriptorSize = DescriptorSize;
 
     // 6. Handover
     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Exiting Boot Services...\r\n");
@@ -126,7 +128,7 @@ EFI_STATUS efi_main(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE *SystemTable) {
     }
     
     void (*KernelEntry)(BootInfo*) = (void (*)(BootInfo*))kernel_entry;
-    KernelEntry(&bootInfo);
+    KernelEntry(bootInfo);
 
     while(1) { __asm__("hlt"); }
     return EFI_SUCCESS;

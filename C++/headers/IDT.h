@@ -24,7 +24,7 @@ extern "C" void LoadIDT();
 __attribute__((no_caller_saved_registers))
 extern void (*MainKeyboardHandler)(uint_8 scanCode, uint_8 chr);
 
-void MakeIDTEntry(uint_64 handler, uint_16 index, uint_16 selector, uint_8 types_attr);
+bool MakeIDTEntry(uint_64 handler, uint_16 index, uint_16 selector, uint_8 types_attr);
 void InitializeIDT();
 
 __attribute__((no_caller_saved_registers))

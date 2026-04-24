@@ -10,6 +10,7 @@ SECTIONS
         *(.entry)
         *(.text)
         *(.text.*)
+        *(.trampoline)
     }
 
     .rodata : 

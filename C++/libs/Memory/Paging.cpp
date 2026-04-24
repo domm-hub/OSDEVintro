@@ -22,7 +22,7 @@ namespace Paging {
         if (!PDE.GetFlag(Present)) {
             PDP = (PageTable*)GlobalAllocator.RequestPage();
             memset(PDP, 0, 4096);
-            PDE.SetAddress((uint_64)PDP >> 12);
+            PDE.SetAddress((uint_64)PDP);
             PDE.SetFlag(Present, true);
             PDE.SetFlag(ReadWrite, true);
             if (userAccessible) PDE.SetFlag(UserSuper, true);
@@ -32,7 +32,7 @@ namespace Paging {
                 PDE.SetFlag(UserSuper, true);
                 PML4->entries[index4] = PDE;
             }
-            PDP = (PageTable*)((uint_64)PDE.GetAddress() << 12);
+            PDP = (PageTable*)PDE.GetAddress();
         }
 
         // Level 3 (PDPT)
@@ -41,7 +41,7 @@ namespace Paging {
         if (!PDE.GetFlag(Present)) {
             PD = (PageTable*)GlobalAllocator.RequestPage();
             memset(PD, 0, 4096);
-            PDE.SetAddress((uint_64)PD >> 12);
+            PDE.SetAddress((uint_64)PD);
             PDE.SetFlag(Present, true);
             PDE.SetFlag(ReadWrite, true);
             if (userAccessible) PDE.SetFlag(UserSuper, true);
@@ -51,7 +51,7 @@ namespace Paging {
                 PDE.SetFlag(UserSuper, true);
                 PDP->entries[index3] = PDE;
             }
-            PD = (PageTable*)((uint_64)PDE.GetAddress() << 12);
+            PD = (PageTable*)PDE.GetAddress();
         }
 
         // Level 2 (Page Directory)
@@ -60,7 +60,7 @@ namespace Paging {
         if (!PDE.GetFlag(Present)) {
             PT = (PageTable*)GlobalAllocator.RequestPage();
             memset(PT, 0, 4096);
-            PDE.SetAddress((uint_64)PT >> 12);
+            PDE.SetAddress((uint_64)PT);
             PDE.SetFlag(Present, true);
             PDE.SetFlag(ReadWrite, true);
             if (userAccessible) PDE.SetFlag(UserSuper, true);
@@ -70,12 +70,12 @@ namespace Paging {
                 PDE.SetFlag(UserSuper, true);
                 PD->entries[index2] = PDE;
             }
-            PT = (PageTable*)((uint_64)PDE.GetAddress() << 12);
+            PT = (PageTable*)PDE.GetAddress();
         }
 
         // Level 1 (Page Table)
         PDE = PT->entries[index1];
-        PDE.SetAddress((uint_64)physicalMemory >> 12);
+        PDE.SetAddress((uint_64)physicalMemory);
         PDE.SetFlag(Present, true);
         PDE.SetFlag(ReadWrite, true);
         if (userAccessible) PDE.SetFlag(UserSuper, true);

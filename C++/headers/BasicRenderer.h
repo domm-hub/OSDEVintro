@@ -25,6 +25,9 @@ public:
 
     void Clear(uint_32 color = 0x00000000);
 
+    void SwapBuffers();
+    void SwapArea(uint_32 x, uint_32 y, uint_32 w, uint_32 h);
+
     void DelChar(int x, int y, bool keepPos = true, uint_64 clr = 0x00000000);
 
     void PutCharCoords(int x, int y, char c, uint_32 color);
@@ -45,6 +48,7 @@ public:
     bool CursorDrawn;
     Point CursorPosition;
     Framebuffer* TargetFramebuffer;
+    void* BackBuffer;
     PSF1_Font* TargetFont;
     uint_32 Color;
 

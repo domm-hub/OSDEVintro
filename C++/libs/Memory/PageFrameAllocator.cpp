@@ -70,7 +70,7 @@ void PageFrameAllocator::ReservePages(void* address, uint_64 pageCount) {
 }
 
 void* PageFrameAllocator::RequestPage() {
-    for (uint_64 i = 0; i < PageBitmap.Size * 8; i++) {
+    for (uint_64 i = 1; i < PageBitmap.Size * 8; i++) { // Start at 1, never return 0
         if (PageBitmap[i] == true) continue;
         ReservePage((void*)(i * 4096));
         return (void*)(i * 4096);

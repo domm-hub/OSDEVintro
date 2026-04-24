@@ -80,6 +80,13 @@ public:
         return current_size; 
     }
 
+    void clear() {
+        if (contents) delete[] contents;
+        contents = nullptr;
+        capacity = 0;
+        current_size = 0;
+    }
+
     ~Vector() {
         if (contents) delete[] contents;
     }

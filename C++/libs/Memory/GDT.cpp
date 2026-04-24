@@ -60,7 +60,7 @@ void InitializeGDT() {
     DefaultGDT.TSS_High.Base3 = (uint_32)((tss_base >> 32) & 0xFFFFFFFF);
     DefaultGDT.TSS_High.Reserved = 0; 
 
-    GDTR gdtr;
+    static GDTR gdtr __attribute__((aligned(8)));
     gdtr.Limit = sizeof(GDTContainer) - 1;
     gdtr.Offset = (uint_64)&DefaultGDT;
     

@@ -4,6 +4,7 @@
 #include "Keyboard.h"
 #include "PIT.h"
 #include "str.h"
+#include "Multitask.h"
 
 // Tracking state for modifiers and extended keys
 bool LShift = false;
@@ -24,7 +25,7 @@ String prompt(String prmpt) {
     GlobalRenderer->PromptSize = GlobalRenderer->BufferSize;
     
     while (!EnterPressed) {
-        __asm__("hlt"); 
+        Scheduler::Yield(); 
     }
     
     isPrompting = false;

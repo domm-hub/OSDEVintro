@@ -12,7 +12,17 @@ typedef unsigned long long uint64_t;
 
 typedef __SIZE_TYPE__ size_t;
 
+typedef signed char int_8;
+typedef signed short int_16;
+typedef signed int int_32;
+typedef signed long long int_64;
+
 typedef signed char sint_8;
 typedef signed short sint_16;
 typedef signed int sint_32;
 typedef signed long long sint_64;
+
+typedef signed char int8_t;
+typedef signed short int16_t;
+typedef signed int int32_t;
+typedef signed long long int64_t;

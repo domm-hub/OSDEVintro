@@ -1,4 +1,5 @@
 #include "Memory.h"
+#include "Heap.h"
 
 void memset(void* start, uint_64 value, uint_64 num){
     if (num < 8){
@@ -47,4 +48,47 @@ void memcpy(void* destination, void* source, uint_64 num){
     for (uint_64 i = 0; i < remainder; i++){
         destptr8[i] = srcptr8[i];
     }
+}
+
+// Standard C++ operators
+void* operator new(size_t size) {
+    return malloc(size);
+}
+
+void* operator new[](size_t size) {
+    return malloc(size);
+}
+
+void operator delete(void* p) {
+    free(p);
+}
+
+void operator delete[](void* p) {
+    free(p);
+}
+
+void operator delete(void* p, size_t size) {
+    free(p);
+}
+
+void operator delete[](void* p, size_t size) {
+    free(p);
+}
+
+// C++ ABI Support
+extern "C" int __cxa_atexit(void (*destructor) (void *), void *arg, void *dso) {
+    return 0;
+}
+
+extern "C" void* __dso_handle = (void*) &__dso_handle;
+
+extern "C" int __cxa_guard_acquire (uint_64 *g) {
+    return !*(char *)(g);
+}
+
+extern "C" void __cxa_guard_release (uint_64 *g) {
+    *(char *)g = 1;
+}
+
+extern "C" void __cxa_guard_abort (uint_64 *g) {
 }

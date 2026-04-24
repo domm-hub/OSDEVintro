@@ -34,13 +34,16 @@ namespace Paging {
         }
 
         void SetAddress(uint_64 address) {
-            address &= 0x000000ffffffffff; 
-            Value &= 0xfff0000000000fff;   
-            Value |= (address << 12);
+            // Mask the address to ensure only bits 12-51 are used for the physical address field
+            // and preserve the flags in bits 0-11 and 52-63
+            uint_64 addressMask = 0x000ffffffffff000;
+            address &= addressMask;
+            Value &= ~addressMask;
+            Value |= address;
         }
 
         uint_64 GetAddress() {
-            return (Value & 0x000ffffffffff000) >> 12;
+            return Value & 0x000ffffffffff000;
         }
     };
 

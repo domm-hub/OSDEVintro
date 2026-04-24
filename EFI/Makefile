@@ -21,10 +21,10 @@ $(shell mkdir -p $(BINF))
 # --- Flags ---
 CFLAGS = -target x86_64-unknown-windows -ffreestanding -fshort-wchar -mno-red-zone \
          -mgeneral-regs-only -I/usr/include/efi -I/usr/include/efi/x86_64 \
-         -Dtarget_x86_64 -DGNU_EFI_USE_MS_ABI -Wall -O2 -I $(SRC_DIR)/headers
+         -Dtarget_x86_64 -DGNU_EFI_USE_MS_ABI -Wall -O2 -g -I $(SRC_DIR)/headers
 
 CXXFLAGS = -target x86_64-unknown-none -ffreestanding -fno-stack-protector \
-           -fno-exceptions -fno-rtti -mno-red-zone -Wall -O2 \
+           -fno-exceptions -fno-rtti -mno-red-zone -Wall -O2 -g \
            -I. -I $(SRC_DIR)/headers \
 		   -mgeneral-regs-only
 
@@ -34,9 +34,9 @@ LDFLAGS = -flavor link -subsystem:efi_application -entry:efi_main -nodefaultlib
 
 # --- Object List ---
 OBJS = $(addprefix $(BINF), entry.o Kernel.o Framebuffer.o BasicRenderer.o IO.o \
-       IDT.o Keyboard.o PIT.o PCI.o AHCI.o fat32.o TextPrint.o Heap.o \
+       IDT.o Keyboard.o Mouse.o PIT.o PCI.o AHCI.o fat32.o TextPrint.o Heap.o \
        Memory.o MemoryMap.o GDT.o gdt_wrapper.o str.o font.o userspace.o \
-       Syscalls.o setjmp.o PageFrameAllocator.o Paging.o)
+       Syscalls.o setjmp.o PageFrameAllocator.o Paging.o Multitask.o multitask_asm.o)
 
 all: $(EFI_TARGET) $(KERNEL_BIN) $(USER_BIN)
 
@@ -82,6 +82,9 @@ $(BINF)IDT.o: $(DRV_DIR)/IDT/IDT.cpp
 $(BINF)Keyboard.o: $(DRV_DIR)/IDT/Keyboard.cpp
 	$(CXX) $(ISR_FLAGS) -c $< -o $@
 
+$(BINF)Mouse.o: $(DRV_DIR)/IDT/Mouse.cpp
+	$(CXX) $(ISR_FLAGS) -c $< -o $@
+
 $(BINF)PIT.o: $(DRV_DIR)/IDT/PIT.cpp
 	$(CXX) $(ISR_FLAGS) -c $< -o $@
 
@@ -99,6 +102,12 @@ $(BINF)PageFrameAllocator.o: $(LIB_DIR)/Memory/PageFrameAllocator.cpp
 $(BINF)Paging.o: $(LIB_DIR)/Memory/Paging.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+$(BINF)Multitask.o: $(SRC_DIR)/libs/Multitask.cpp
+	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+$(BINF)multitask_asm.o: $(DRV_DIR)/User/multitask_asm.S
+	$(CC) -target x86_64-unknown-none -c $< -o $@
+
 $(BINF)Heap.o: $(LIB_DIR)/Memory/Heap/Heap.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -110,16 +119,16 @@ $(BINF)MemoryMap.o: $(LIB_DIR)/Memory/Heap/MemoryMap.cpp
 
 # 3. Assembly Files
 $(BINF)entry.o: $(LIB_DIR)/entry.S
-	$(CC) -target x86_64-unknown-none -c $< -o $@
+	$(CC) -target x86_64-unknown-none -g -c $< -o $@
 
 $(BINF)gdt_wrapper.o: $(LIB_DIR)/Memory/gdt_wrapper.S
-	$(CC) -target x86_64-unknown-none -c $< -o $@
+	$(CC) -target x86_64-unknown-none -g -c $< -o $@
 
 $(BINF)userspace.o: $(DRV_DIR)/User/userspace.S
-	$(CC) -target x86_64-unknown-none -c $< -o $@
+	$(CC) -target x86_64-unknown-none -g -c $< -o $@
 
 $(BINF)setjmp.o: $(DRV_DIR)/User/setjmp.S
-	$(CC) -target x86_64-unknown-none -c $< -o $@
+	$(CC) -target x86_64-unknown-none -g -c $< -o $@
 
 $(BINF)Syscalls.o: $(DRV_DIR)/User/Syscalls.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -143,7 +152,7 @@ $(FS_IMG):
 	@echo "Creating 64MB FAT32 disk image..."
 	dd if=/dev/zero of=$(FS_IMG) bs=1M count=64
 	$(LIMA) mkfs.fat -F 32 $(FS_IMG)
-	@echo "Hello from Text1!" > Text1.txt
+	@echo "Hello!" > Text1.txt
 	$(LIMA) mmd -i $(FS_IMG) ::/my_folder
 	$(LIMA) mcopy -i $(FS_IMG) Text1.txt ::/my_folder/
 	$(LIMA) mcopy -i $(FS_IMG) $(USER_BIN) ::/
@@ -158,15 +167,20 @@ deploy: all $(FS_IMG)
 	printf "\\\EFI\\\BOOT\\\BOOTX64.EFI\r\n" > esp/startup.nsh
 
 run: deploy
-	qemu-system-x86_64 -M q35 -drive if=pflash,format=raw,readonly=on,file=OVMF/OVMF_CODE-pure-efi.fd \
-		-drive if=pflash,format=raw,file=OVMF/OVMF_VARS-pure-efi.fd \
-		-drive format=raw,file=fat:rw:esp \
-		-drive id=disk,file=$(FS_IMG),if=none,format=raw \
-		-device ich9-ahci,id=ahci \
-		-device ide-hd,drive=disk,bus=ahci.0 \
-		-m 256M -net none
+	qemu-system-x86_64 -M q35 \
+	    -drive if=pflash,format=raw,readonly=on,file=OVMF/OVMF_CODE-pure-efi.fd \
+	    -drive if=pflash,format=raw,file=OVMF/OVMF_VARS-pure-efi.fd \
+	    -drive id=boot,file=fat:rw:esp,if=none,format=raw \
+	    -drive id=data,file=$(FS_IMG),if=none,format=raw \
+	    -device ich9-ahci,id=ahci \
+	    -device ide-hd,drive=boot,bus=ahci.0 \
+	    -device ide-hd,drive=data,bus=ahci.1 \
+	    -m 256M \
+	    -s -S &
+	sleep 1
+	gdb -ex "target remote localhost:1234" -ex "set disassembly-flavor intel" -ex "c"  $(KERNEL_BIN)
 
 clean:
-	rm -rf $(BINF) *.o $(EFI_TARGET) $(KERNEL_BIN) $(USER_BIN) esp/ $(FS_IMG) Text1.txt Text2.txt
+	rm -rf $(BINF) *.o $(EFI_TARGET) $(KERNEL_BIN) $(USER_BIN) esp/ $(FS_IMG) Text1.txt
 
 .PHONY: all deploy run clean

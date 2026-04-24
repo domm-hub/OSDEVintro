@@ -1,16 +1,41 @@
-Findings on Ring 3 Transition Hang:
+# Speculative Investigation Report: OS Triple Fault
 
-1. Syscall Number Overwritten: In 'userspace.S', 'SyscallHandlerEntry' overwrites RAX with RSP before saving it. This causes the syscall number to be lost and replaced by the user stack pointer, leading 'SyscallDispatcher' to ignore all requests (including exit and print).
+## Findings
 
-2. Stack Out-of-Bounds: 'userRsp' is set to 0x904000, but only memory up to 0x903FFF is mapped in 'Kernel.cpp'. When '_start' returns, the 'ret' instruction attempts to pop from 0x904000, triggering a Page Fault.
+### 1. Stack Inaccessibility (Critical)
+The kernel is currently executing on the UEFI-provided stack. In `Kernel.cpp`, `LoadCR3` is called to switch to a new page table that only identity-maps the first 256MB of memory. UEFI stacks are frequently located in high memory (e.g., above 4GB or near the top of the 64-bit address space). 
+- **Failure Mechanism:** When `LoadCR3` (a function call) attempts to return via the `ret` instruction, it tries to pop the return address from the stack. If the stack is not mapped in the new PML4, a Page Fault occurs. Since the IDT is not yet initialized or the stack itself is invalid, this immediately escalates to a Double Fault and then a Triple Fault.
 
-3. Register Clobbering: The 'syscall' instruction in 'IO.cpp' does not list RCX and R11 in the clobber list. These registers are used by the CPU to save RIP and RFLAGS and will be destroyed upon return to user mode.
+### 2. Identity Mapping Scope
+The 256MB identity mapping is arbitrary and likely insufficient for all active UEFI-allocated buffers, including the BootInfo structure, the Framebuffer (which is mapped separately but still), and the stack.
 
-4. GDT/STAR Consistency: The GDT order (UserCode32, UserData, UserCode64) is technically compatible with 'sysretq' requirements if STAR[63:48] is 0x1B, but the manual jump in 'JumpToUser' must strictly use 0x2B (CS) and 0x23 (SS).
+### 3. Missing Exception Handlers
+The IDT only defines handlers for GPF (13) and Page Fault (14). Any other exception (e.g., Stack Fault, Alignment Check, or a Page Fault on a vector other than 14 due to misconfiguration) will cause an immediate triple fault because there is no handler to catch the initial exception.
 
-5. Kernel Stack Reset: 'SyscallHandlerEntry' resets RSP to 'KernelStackPtr' on every call. This is functional for a single-tasking environment but will overwrite any nested state if interrupts are re-enabled.
+### 4. Alignment
+`GDTR` and `IDTR` structures are local variables on the stack and lack explicit alignment. While usually tolerated, some environments/hardware require 8-byte alignment for the structures passed to `lgdt` and `lidt`.
 
-Recommendation:
-- Fix 'SyscallHandlerEntry' to preserve RAX (e.g., push it to the stack before overwriting).
-- Map the page at 0x904000 or set 'userRsp' to 0x903FF8 to avoid the immediate Page Fault on return.
-- Add RCX and R11 to the clobber lists in 'IO.cpp'.
+---
+
+## Definitive Fix Plan
+
+### Step 1: Secure the Stack
+Before calling `LoadCR3`, we must ensure the stack is in a known, mapped location.
+- **Action:** Define a static `uint8_t kernel_stack[65536]` (64KB) in `Kernel.cpp` or a dedicated assembly file.
+- **Action:** Switch the `rsp` register to this new stack *before* the paging switch or ensure the UEFI stack is explicitly identity-mapped.
+
+### Step 2: Expand Identity Mapping
+Instead of a hardcoded 256MB, map the entire memory range used by the kernel and UEFI.
+- **Action:** Iterate through the UEFI memory map provided in `BootInfo` and identity-map every region marked as `EfiLoaderCode`, `EfiLoaderData`, `EfiBootServicesCode`, `EfiBootServicesData`, and `EfiConventionalMemory` up to at least 4GB.
+
+### Step 3: Robust Exception Handling
+- **Action:** Create a generic assembly stub that pushes a dummy error code (if necessary) and the vector number, then calls a C++ "Panic" function.
+- **Action:** Populate all 32 exception vectors (0-31) in the IDT with this stub during `InitializeIDT`.
+
+### Step 4: Structural Alignment
+- **Action:** Add `__attribute__((aligned(8)))` to the `GDTR` and `IDTR` structure definitions.
+- **Action:** Move `GDTR` and `IDTR` from local stack variables to static globals to ensure stability.
+
+### Step 5: Verify Interrupt Readiness
+- **Action:** Ensure `RemapPic` is correctly shifting IRQs to 0x20-0x2F to avoid overlap with exceptions. (Current implementation looks correct, but double-check vector 8 overlap).
+- **Action:** Ensure `sti` is only called after all stubs and the Scheduler are fully initialized.

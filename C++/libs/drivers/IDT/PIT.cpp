@@ -1,27 +1,30 @@
 #include "PIT.h"
 #include "IO.h"
 #include "BasicRenderer.h"
+#include "Multitask.h"
 
 namespace PIT {
     volatile uint_64 TimeSinceBootMS = 0;
     volatile uint_64 TicksSinceBoot = 0;
+    uint_64 FractionalMS = 0;
     
     uint_16 Divisor = 65535;
 
     void Sleep(uint_64 milliseconds){
         uint_64 startTime = TimeSinceBootMS;
         while (TimeSinceBootMS < startTime + milliseconds){
-            asm("hlt");
+            Scheduler::Yield();
         }
     }
 
     void io_wait() {
         outb(0x80, 0);
     }
-
+ 
     void SetDivisor(uint_16 divisor){
         if (divisor < 100) divisor = 100;
         Divisor = divisor;
+        FractionalMS = 0;
         outb(0x43, 0x36); // Command port
         io_wait();
         outb(0x40, (uint_8)(divisor & 0x00ff));
@@ -41,7 +44,10 @@ namespace PIT {
 
     void Tick(){
         TicksSinceBoot++;
-        TimeSinceBootMS += 1000 / (1193182 / Divisor);
+        
+        uint_64 numerator = (uint_64)Divisor * 1000 + FractionalMS;
+        TimeSinceBootMS += numerator / 1193182;
+        FractionalMS = numerator % 1193182;
         
         uint_64 freq = 1193182 / Divisor;
         uint_64 blinkTicks = freq / 2;
@@ -53,5 +59,9 @@ namespace PIT {
             }
         }
         
+    }
+
+    extern "C" void PIT_Tick_Wrapper() {
+        Tick();
     }
 }

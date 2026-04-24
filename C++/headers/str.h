@@ -11,8 +11,10 @@ int strncmp(const char* s1, const char* s2, size_t n);
 
 char* strcpy(char* dest, const char* src);
 
+uint_64 StringToInt(const char* str);
 
 class String {
+
 private:
     Vector<char> buffer;
     uint_32 slength;
@@ -31,6 +33,8 @@ public:
     String& operator+=(char c);
     bool operator==(const char* other);
     bool operator==(const String& other);
+    bool operator!=(const char* other);
+    bool operator!=(const String& other);
     String operator+(const String& other);
     String operator+(const char* other);
     String& operator=(const char* str); 
@@ -46,6 +50,8 @@ public:
     
     // Allows kprint(myString)
     operator char*() { return c_str(); }
-};
+    };
 
-String operator+(const char* lhs, const String& rhs);
+    uint_64 StringToInt(String str);
+
+    String operator+(const char* lhs, const String& rhs);

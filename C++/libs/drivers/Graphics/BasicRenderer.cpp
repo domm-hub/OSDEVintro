@@ -1,6 +1,8 @@
 #include "BasicRenderer.h"
 #include "TypeDefs.h"
 #include "IO.h"
+#include "Memory.h"
+#include "Heap.h"
 
 BasicRenderer* GlobalRenderer = nullptr;
 
@@ -17,6 +19,12 @@ BasicRenderer::BasicRenderer(Framebuffer* fb, PSF1_Font* font) {
     ClearColor = 0x00111111; // Dark grey default
     CursorDrawn = false;
     Locked = false;
+
+    // Allocate BackBuffer
+    BackBuffer = malloc(fb->BufferSize);
+    if (BackBuffer) {
+        memset(BackBuffer, 0, fb->BufferSize);
+    }
 }
 
 uint_64 BasicRenderer::GetIndex(uint_32 x, uint_32 y) {
@@ -24,27 +32,40 @@ uint_64 BasicRenderer::GetIndex(uint_32 x, uint_32 y) {
 }
 
 void BasicRenderer::DrawCursor(uint_32 color) {
-    // Only draw underscore if we are NOT currently locked by a print operation
     if (Locked) return; 
     
     CursorDrawn = true;
     unsigned char* glyph = (unsigned char*)TargetFont->glyphBuffer + ('_' * TargetFont->header->charsize);
-    for (uint_32 i = 0; i < TargetFont->header->charsize; i++) {
+    uint_32 fontHeight = TargetFont->header->charsize;
+    uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
+
+    for (uint_32 i = 0; i < fontHeight; i++) {
         for (uint_32 j = 0; j < 8; j++) {
             if (glyph[i] & (0x80 >> j)) {
-                PutPixel(TargetFramebuffer, CursorPosition.X + j, CursorPosition.Y + i, color);
+                uint_32 px = CursorPosition.X + j;
+                uint_32 py = CursorPosition.Y + i;
+                if (px < TargetFramebuffer->Width && py < TargetFramebuffer->Height) {
+                    PutPixel(TargetFramebuffer, px, py, color);
+                    if (BackBuffer) ((uint_32*)BackBuffer)[px + (py * stride)] = color;
+                }
             }
         }
     }
 }
 
 void BasicRenderer::ClearCursor() {
-    // Force clear without checking lock (used internally by PutChar)
     CursorDrawn = false;
     uint_32 fontHeight = TargetFont->header->charsize;
+    uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
+
     for (uint_32 offY = 0; offY < fontHeight; offY++) {
         for (uint_32 offX = 0; offX < 8; offX++) {
-            PutPixel(TargetFramebuffer, CursorPosition.X + offX, CursorPosition.Y + offY, ClearColor); 
+            uint_32 px = CursorPosition.X + offX;
+            uint_32 py = CursorPosition.Y + offY;
+            if (px < TargetFramebuffer->Width && py < TargetFramebuffer->Height) {
+                PutPixel(TargetFramebuffer, px, py, ClearColor); 
+                if (BackBuffer) ((uint_32*)BackBuffer)[px + (py * stride)] = ClearColor;
+            }
         }
     }
 }
@@ -59,51 +80,50 @@ void BasicRenderer::ToggleCursor() {
 }
 
 void BasicRenderer::PutChar(char c, uint_32 color) {
-    // This is an internal function, the lock should be handled by the caller (Print/Backspace/etc)
-    
-    // 1. Clear existing cursor
     ClearCursor();
 
-    // 2. Buffer character
     if (BufferSize < 2048) {
         TextBuffer[BufferSize] = c;
         ColorBuffer[BufferSize] = color;
         BufferSize++;
     }
 
-    // 3. Handle Newline
     if (c == '\n') {
         CursorPosition.X = 0;
         CursorPosition.Y += TargetFont->header->charsize;
         DrawCursor(0xFFFFFFFF);
-        // Note: PutChar is internal, lock handled by Print/etc.
-        // If we return here, the caller must release the lock.
         return;
     }
 
-    // 4. Draw glyph
     unsigned char* glyph = (unsigned char*)TargetFont->glyphBuffer + (c * TargetFont->header->charsize);
-    for (uint_32 i = 0; i < TargetFont->header->charsize; i++) {
+    uint_32 fontHeight = TargetFont->header->charsize;
+    uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
+
+    for (uint_32 i = 0; i < fontHeight; i++) {
         for (uint_32 j = 0; j < 8; j++) {
             if (glyph[i] & (0x80 >> j)) {
-                PutPixel(TargetFramebuffer, CursorPosition.X + j, CursorPosition.Y + i, color);
+                uint_32 px = CursorPosition.X + j;
+                uint_32 py = CursorPosition.Y + i;
+                if (px < TargetFramebuffer->Width && py < TargetFramebuffer->Height) {
+                    PutPixel(TargetFramebuffer, px, py, color);
+                    if (BackBuffer) ((uint_32*)BackBuffer)[px + (py * stride)] = color;
+                }
             }
         }
     }
 
-    // 5. Advance cursor
     CursorPosition.X += 8;
     if (CursorPosition.X + 8 > TargetFramebuffer->Width) {
         CursorPosition.X = 0;
-        CursorPosition.Y += TargetFont->header->charsize;
+        CursorPosition.Y += fontHeight;
     }
     
-    // 6. Restore cursor at new position
     DrawCursor(0xFFFFFFFF);
 }
 
 void BasicRenderer::Print(const char* str, uint_32 color) {
-    Locked = true; // Hold lock for the duration of the entire string
+    while (Locked) { __asm__("pause"); } // Wait for screen to be free
+    Locked = true; 
     char* chr = (char*)str;
     while (*chr != '\0') {
         PutChar(*chr, color);
@@ -113,6 +133,7 @@ void BasicRenderer::Print(const char* str, uint_32 color) {
 }
 
 void BasicRenderer::NextLine() {
+    while (Locked) { __asm__("pause"); }
     Locked = true;
     ClearCursor();
     CursorPosition.X = 0;
@@ -122,6 +143,7 @@ void BasicRenderer::NextLine() {
 }
 
 void BasicRenderer::Clear(uint_32 color) {
+    while (Locked) { __asm__("pause"); }
     Locked = true;
     ClearColor = color;
     uint_32* pixelPtr = (uint_32*)TargetFramebuffer->BaseAddress;
@@ -130,6 +152,17 @@ void BasicRenderer::Clear(uint_32 color) {
             pixelPtr[x + (y * TargetFramebuffer->PixelsPerScanLine)] = color;
         }
     }
+    
+    // Also clear backbuffer
+    if (BackBuffer) {
+        uint_32* backPixelPtr = (uint_32*)BackBuffer;
+        for (uint_32 y = 0; y < TargetFramebuffer->Height; y++) {
+            for (uint_32 x = 0; x < TargetFramebuffer->Width; x++) {
+                backPixelPtr[x + (y * TargetFramebuffer->PixelsPerScanLine)] = color;
+            }
+        }
+    }
+
     CursorPosition = {0, 0};
     BufferSize = 0;
     PromptSize = 0;
@@ -137,9 +170,35 @@ void BasicRenderer::Clear(uint_32 color) {
     Locked = false;
 }
 
+void BasicRenderer::SwapBuffers() {
+    if (!BackBuffer) return;
+    memcpy(TargetFramebuffer->BaseAddress, BackBuffer, TargetFramebuffer->BufferSize);
+}
+
+void BasicRenderer::SwapArea(uint_32 x, uint_32 y, uint_32 w, uint_32 h) {
+    if (!BackBuffer) return;
+    
+    uint_32* back = (uint_32*)BackBuffer;
+    uint_32* front = (uint_32*)TargetFramebuffer->BaseAddress;
+    uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
+    uint_32 width = TargetFramebuffer->Width;
+    uint_32 height = TargetFramebuffer->Height;
+
+    for (uint_32 i = 0; i < h; i++) {
+        uint_32 dy = y + i;
+        if (dy >= height) break;
+        for (uint_32 j = 0; j < w; j++) {
+            uint_32 dx = x + j;
+            if (dx >= width) break;
+            front[dx + (dy * stride)] = back[dx + (dy * stride)];
+        }
+    }
+}
+
 void BasicRenderer::Backspace() {
     if (BufferSize <= PromptSize) return;
 
+    while (Locked) { __asm__("pause"); }
     Locked = true;
     ClearCursor();
 
@@ -148,6 +207,7 @@ void BasicRenderer::Backspace() {
     BufferSize--;
 
     uint_32 fontHeight = TargetFont->header->charsize;
+    uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
 
     if (deletedChar == '\n') {
         CursorPosition.Y -= fontHeight;
@@ -161,7 +221,12 @@ void BasicRenderer::Backspace() {
         CursorPosition.X -= 8;
         for (uint_32 offY = 0; offY < fontHeight; offY++) {
             for (uint_32 offX = 0; offX < 8; offX++) {
-                PutPixel(TargetFramebuffer, CursorPosition.X + offX, CursorPosition.Y + offY, ClearColor); 
+                uint_32 px = CursorPosition.X + offX;
+                uint_32 py = CursorPosition.Y + offY;
+                if (px < TargetFramebuffer->Width && py < TargetFramebuffer->Height) {
+                    PutPixel(TargetFramebuffer, px, py, ClearColor); 
+                    if (BackBuffer) ((uint_32*)BackBuffer)[px + (py * stride)] = ClearColor;
+                }
             }
         }
     }
@@ -174,10 +239,18 @@ void BasicRenderer::Backspace() {
 void BasicRenderer::PutCharCoords(int x, int y, char c, uint_32 color) {
     Locked = true;
     unsigned char* glyph = (unsigned char*)TargetFont->glyphBuffer + (c * TargetFont->header->charsize);
-    for (uint_32 i = 0; i < TargetFont->header->charsize; i++) {
+    uint_32 fontHeight = TargetFont->header->charsize;
+    uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
+
+    for (uint_32 i = 0; i < fontHeight; i++) {
         for (uint_32 j = 0; j < 8; j++) {
             if (glyph[i] & (0x80 >> j)) {
-                PutPixel(TargetFramebuffer, (x*8) + j, (y * TargetFont->header->charsize) + i, color);
+                uint_32 px = (x * 8) + j;
+                uint_32 py = (y * fontHeight) + i;
+                if (px < TargetFramebuffer->Width && py < TargetFramebuffer->Height) {
+                    PutPixel(TargetFramebuffer, px, py, color);
+                    if (BackBuffer) ((uint_32*)BackBuffer)[px + (py * stride)] = color;
+                }
             }
         }
     }
@@ -193,9 +266,15 @@ void BasicRenderer::ChangeVisualCursorPosition(uint_32 ox, uint_32 oy, uint_32 n
     } else {
         // Just clear it
         uint_32 fontHeight = TargetFont->header->charsize;
+        uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
         for (uint_32 offY = 0; offY < fontHeight; offY++) {
             for (uint_32 offX = 0; offX < 8; offX++) {
-                PutPixel(TargetFramebuffer, (ox*8) + offX, (oy*fontHeight) + offY, ClearColor); 
+                uint_32 px = (ox * 8) + offX;
+                uint_32 py = (oy * fontHeight) + offY;
+                if (px < TargetFramebuffer->Width && py < TargetFramebuffer->Height) {
+                    PutPixel(TargetFramebuffer, px, py, ClearColor); 
+                    if (BackBuffer) ((uint_32*)BackBuffer)[px + (py * stride)] = ClearColor;
+                }
             }
         }
     }
@@ -215,10 +294,16 @@ void BasicRenderer::DelChar(int x, int y, bool keepPos, uint_64 clr) {
     uint_32 fontHeight = TargetFont->header->charsize;
     uint_32 pixelX = x * 8;
     uint_32 pixelY = y * fontHeight;
+    uint_32 stride = TargetFramebuffer->PixelsPerScanLine;
 
     for (uint_32 offY = 0; offY < fontHeight; offY++) {
         for (uint_32 offX = 0; offX < 8; offX++) {
-            PutPixel(TargetFramebuffer, pixelX + offX, pixelY + offY, (uint_32)clr); 
+            uint_32 px = pixelX + offX;
+            uint_32 py = pixelY + offY;
+            if (px < TargetFramebuffer->Width && py < TargetFramebuffer->Height) {
+                PutPixel(TargetFramebuffer, px, py, (uint_32)clr); 
+                if (BackBuffer) ((uint_32*)BackBuffer)[px + (py * stride)] = (uint_32)clr;
+            }
         }
     }
 
